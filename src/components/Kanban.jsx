@@ -4,13 +4,15 @@ import PanneauTache from './PanneauTache'
 import FormulaireTache from './FormulaireTache'
 
 function BadgePriorite({ priorite }) {
-  const styles = {
-    haute:   'text-red-500',
-    moyenne: 'text-amber-500',
-    basse:   'text-gray-400',
+  const config = {
+    haute:   { color: 'var(--df-danger)' },
+    moyenne: { color: 'var(--df-warning)' },
+    basse:   { color: 'var(--df-text-tertiary)' },
   }
+  const s = config[priorite] || config.basse
   return (
-    <span className={`text-xs font-medium ${styles[priorite]}`}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: s.color }}>
+      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: s.color }} />
       {priorite}
     </span>
   )
@@ -18,51 +20,35 @@ function BadgePriorite({ priorite }) {
 
 function CarteTache({ tache, onClick, membreActif }) {
   const estCollaborateur = membreActif?.role === 'collaborateur'
-
-  const membres = Array.isArray(tache.membres_affectes)
-    ? tache.membres_affectes
-    : JSON.parse(tache.membres_affectes || '[]')
+  const membres = Array.isArray(tache.membres_affectes) ? tache.membres_affectes : (() => { try { return JSON.parse(tache.membres_affectes || '[]') } catch { return [] } })()
 
   return (
-    <div
-      onClick={onClick}
-      className="bg-white border border-gray-200 rounded-lg p-3 mb-2 hover:shadow-sm transition-shadow cursor-pointer"
-    >
+    <div onClick={onClick} className="df-kanban-card">
       {tache.est_en_retard && (
-        <span className="text-xs text-red-500 font-medium mb-1 block">En retard</span>
+        <span className="df-badge" style={{ background: 'var(--df-danger-soft)', color: 'var(--df-danger)', marginBottom: '8px', fontSize: '11px', padding: '2px 8px' }}>En retard</span>
       )}
-      <p className="text-sm font-medium text-gray-800 mb-2">{tache.titre}</p>
-      {tache.phase_nom && (
-        <p className="text-xs text-indigo-400 mb-2">{tache.phase_nom}</p>
-      )}
-      <div className="flex justify-between items-center">
+      <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--df-text-primary)', marginBottom: '8px', lineHeight: 1.4 }}>{tache.titre}</p>
+      {tache.phase_nom && <p style={{ fontSize: '11px', color: 'var(--df-accent)', marginBottom: '8px' }}>{tache.phase_nom}</p>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <BadgePriorite priorite={tache.priorite} />
-        {tache.date_echeance && (
-          <span className="text-xs text-gray-400">{tache.date_echeance}</span>
-        )}
+        {tache.date_echeance && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{tache.date_echeance}</span>}
       </div>
+
       {membres.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1 flex-wrap">
+        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--df-border)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {membres.map(m => (
-            <div key={m.membre_id} className="flex items-center gap-1">
-              <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center">
-                <span className="text-xs text-indigo-600 font-medium">
-                  {m.prenom?.[0]}{m.nom?.[0]}
-                </span>
-              </div>
-              <span className="text-xs text-gray-500">{m.prenom} {m.nom}</span>
+            <div key={m.membre_id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className="df-avatar df-avatar-sm" style={{ width: '22px', height: '22px', fontSize: '9px' }}>{m.prenom?.[0]}{m.nom?.[0]}</div>
+              <span style={{ fontSize: '11px', color: 'var(--df-text-secondary)' }}>{m.prenom}</span>
             </div>
           ))}
         </div>
       )}
-      <div className="mt-2 flex gap-3">
-        {/* Heures masquées pour les collaborateurs */}
-        {tache.total_heures > 0 && !estCollaborateur && (
-          <span className="text-xs text-gray-400">{tache.total_heures}h loggées</span>
-        )}
-        {tache.nb_commentaires > 0 && (
-          <span className="text-xs text-gray-400">{tache.nb_commentaires} commentaire(s)</span>
-        )}
+
+      <div style={{ marginTop: '8px', display: 'flex', gap: '12px' }}>
+        {tache.total_heures > 0 && !estCollaborateur && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{tache.total_heures}h loggées</span>}
+        {tache.nb_commentaires > 0 && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{tache.nb_commentaires} commentaire(s)</span>}
       </div>
     </div>
   )
@@ -70,29 +56,22 @@ function CarteTache({ tache, onClick, membreActif }) {
 
 function Colonne({ titre, couleur, taches, onSelectTache, onNouveauTache, membreActif }) {
   return (
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-3">
-        <div className={`w-2 h-2 rounded-full ${couleur}`} />
-        <span className="text-sm font-medium text-gray-700">{titre}</span>
-        <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
-          {taches.length}
-        </span>
+    <div className="df-kanban-col">
+      <div className="df-kanban-header">
+        <div className="df-kanban-dot" style={{ background: couleur }} />
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--df-text-primary)', flex: 1 }}>{titre}</span>
+        <span className="df-badge" style={{ background: 'var(--df-bg-card)', color: 'var(--df-text-tertiary)', border: '1px solid var(--df-border)' }}>{taches.length}</span>
       </div>
-      <div className="bg-gray-50 rounded-xl p-2 min-h-32">
-        {taches.length === 0 && (
-          <p className="text-xs text-gray-300 text-center mt-4">Aucune tâche</p>
-        )}
+      <div style={{ minHeight: '60px' }}>
+        {taches.length === 0 && <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)', textAlign: 'center', padding: '20px 0' }}>Aucune tâche</p>}
         {taches.map(tache => (
-          <CarteTache
-            key={tache.tache_id}
-            tache={tache}
-            membreActif={membreActif}
-            onClick={() => onSelectTache(tache.tache_id)}
-          />
+          <CarteTache key={tache.tache_id} tache={tache} membreActif={membreActif} onClick={() => onSelectTache(tache.tache_id)} />
         ))}
         <button
           onClick={onNouveauTache}
-          className="w-full mt-2 text-xs text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 py-1.5 rounded-lg transition-colors"
+          style={{ width: '100%', marginTop: '8px', fontSize: '12px', color: 'var(--df-text-tertiary)', padding: '8px', borderRadius: '8px', border: '1px dashed var(--df-border)', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s ease' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--df-accent)'; e.currentTarget.style.borderColor = 'var(--df-accent)'; e.currentTarget.style.background = 'var(--df-accent-soft)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--df-text-tertiary)'; e.currentTarget.style.borderColor = 'var(--df-border)'; e.currentTarget.style.background = 'transparent' }}
         >
           + Tâche
         </button>
@@ -107,10 +86,7 @@ function Kanban({ projetId, membreActif }) {
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
 
   async function chargerTaches() {
-    const { data, error } = await supabase
-      .from('vue_taches_membres')
-      .select('*')
-      .eq('projet_id', projetId)
+    const { data, error } = await supabase.from('vue_taches_membres').select('*').eq('projet_id', projetId)
     if (error) { console.log('Erreur :', error); return }
     setTaches(data)
   }
@@ -119,30 +95,36 @@ function Kanban({ projetId, membreActif }) {
 
   const parStatut = (statut) => taches.filter(t => t.statut === statut)
 
+  const colonnes = [
+    { titre: 'À faire', couleur: 'var(--df-text-tertiary)', statut: 'a_faire' },
+    { titre: 'En cours', couleur: 'var(--df-accent)', statut: 'en_cours' },
+    { titre: 'Terminé', couleur: 'var(--df-success)', statut: 'termine' },
+    { titre: 'Bloqué', couleur: 'var(--df-danger)', statut: 'bloque' },
+  ]
+
   return (
     <div>
-      <div className="flex gap-4">
-        <Colonne titre="À faire"  couleur="bg-gray-400"  taches={parStatut('a_faire')}  onSelectTache={setTacheSelectionnee} onNouveauTache={() => setFormulaireOuvert(true)} membreActif={membreActif} />
-        <Colonne titre="En cours" couleur="bg-blue-400"  taches={parStatut('en_cours')} onSelectTache={setTacheSelectionnee} onNouveauTache={() => setFormulaireOuvert(true)} membreActif={membreActif} />
-        <Colonne titre="Terminé"  couleur="bg-green-400" taches={parStatut('termine')}  onSelectTache={setTacheSelectionnee} onNouveauTache={() => setFormulaireOuvert(true)} membreActif={membreActif} />
-        <Colonne titre="Bloqué"   couleur="bg-red-400"   taches={parStatut('bloque')}   onSelectTache={setTacheSelectionnee} onNouveauTache={() => setFormulaireOuvert(true)} membreActif={membreActif} />
+      {/* Use CSS Grid from .df-kanban-board — responsive breakpoints in CSS */}
+      <div className="df-kanban-board">
+        {colonnes.map(col => (
+          <Colonne
+            key={col.statut}
+            titre={col.titre}
+            couleur={col.couleur}
+            taches={parStatut(col.statut)}
+            onSelectTache={setTacheSelectionnee}
+            onNouveauTache={() => setFormulaireOuvert(true)}
+            membreActif={membreActif}
+          />
+        ))}
       </div>
 
       {formulaireOuvert && (
-        <FormulaireTache
-          projetId={projetId}
-          membreActif={membreActif}
-          onFermer={() => setFormulaireOuvert(false)}
-          onSuccess={() => chargerTaches()}
-        />
+        <FormulaireTache projetId={projetId} membreActif={membreActif} onFermer={() => setFormulaireOuvert(false)} onSuccess={() => chargerTaches()} />
       )}
 
       {tacheSelectionnee && (
-        <PanneauTache
-          tacheId={tacheSelectionnee}
-          membreActif={membreActif}
-          onFermer={() => setTacheSelectionnee(null)}
-        />
+        <PanneauTache tacheId={tacheSelectionnee} membreActif={membreActif} onFermer={() => { setTacheSelectionnee(null); chargerTaches() }} />
       )}
     </div>
   )

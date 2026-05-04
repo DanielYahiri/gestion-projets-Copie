@@ -2,309 +2,89 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 function FormulaireTache({ tache = null, projetId, onFermer, onSuccess }) {
-  const [envoi, setEnvoi] = useState(false)
-  const [erreur, setErreur] = useState('')
   const [phases, setPhases] = useState([])
   const [membres, setMembres] = useState([])
-  const [membresSelectionnes, setMembresSelectionnes] = useState([])
+  const [membresAffectes, setMembresAffectes] = useState([])
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState('')
   const [form, setForm] = useState({
-    titre:         '',
-    description:   '',
-    statut:        'a_faire',
-    priorite:      'moyenne',
-    date_debut:    '',
-    date_echeance: '',
-    phase_id:      '',
+    titre: '', description: '', statut: 'a_faire', priorite: 'moyenne',
+    date_debut: '', date_echeance: '', phase_id: '',
   })
 
   useEffect(() => {
-    // Charger phases et membres
-    async function chargerOptions() {
-      const { data: dataPhases } = await supabase
-        .from('phase')
-        .select('phase_id, nom')
-        .eq('projet_id', projetId)
-        .order('ordre')
+    async function init() {
+      const { data: dataPhases } = await supabase.from('phase').select('phase_id, nom, ordre').eq('projet_id', projetId).order('ordre')
       setPhases(dataPhases || [])
-
-      const { data: dataMembres } = await supabase
-        .from('membre')
-        .select('membre_id, nom, prenom')
-        .order('nom')
+      const { data: dataMembres } = await supabase.from('membre').select('membre_id, nom, prenom').order('nom')
       setMembres(dataMembres || [])
+      if (tache) {
+        setForm({ titre: tache.titre || '', description: tache.description || '', statut: tache.statut || 'a_faire', priorite: tache.priorite || 'moyenne', date_debut: tache.date_debut || '', date_echeance: tache.date_echeance || '', phase_id: tache.phase_id || '' })
+        const membresT = Array.isArray(tache.membres_affectes) ? tache.membres_affectes : (() => { try { return JSON.parse(tache.membres_affectes || '[]') } catch { return [] } })()
+        setMembresAffectes(membresT.map(m => m.membre_id))
+      }
     }
-    chargerOptions()
-
-    // Pré-remplir si modification
-    if (tache) {
-      setForm({
-        titre:         tache.titre         ?? '',
-        description:   tache.description   ?? '',
-        statut:        tache.statut        ?? 'a_faire',
-        priorite:      tache.priorite      ?? 'moyenne',
-        date_debut:    tache.date_debut     ?? '',
-        date_echeance: tache.date_echeance  ?? '',
-        phase_id:      tache.phase_id       ?? '',
-      })
-      // Pré-remplir membres affectés
-      const membresExistants = Array.isArray(tache.membres_affectes)
-        ? tache.membres_affectes
-        : JSON.parse(tache.membres_affectes || '[]')
-      setMembresSelectionnes(membresExistants.map(m => m.membre_id))
-    }
+    init()
   }, [])
 
-  function changer(e) {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
-  }
+  function handleChange(e) { setForm({ ...form, [e.target.name]: e.target.value }) }
 
-  function toggleMembre(membreId) {
-    setMembresSelectionnes(prev =>
-      prev.includes(membreId)
-        ? prev.filter(id => id !== membreId)
-        : [...prev, membreId]
-    )
-  }
+  function toggleMembre(id) { setMembresAffectes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
 
-  async function soumettre() {
-    if (!form.titre.trim()) { setErreur('Le titre est obligatoire'); return }
-    setEnvoi(true)
-    setErreur('')
-
-    const payload = {
-      titre:         form.titre,
-      description:   form.description   || null,
-      statut:        form.statut,
-      priorite:      form.priorite,
-      date_debut:    form.date_debut     || null,
-      date_echeance: form.date_echeance  || null,
-      phase_id:      form.phase_id       || null,
-      projet_id:     projetId,
-    }
-
+  async function handleSubmit() {
+    if (!form.titre.trim()) { setErreur('Le titre est requis.'); return }
+    setErreur(''); setEnvoi(true)
+    const payload = { titre: form.titre, description: form.description || null, statut: form.statut, priorite: form.priorite, date_debut: form.date_debut || null, date_echeance: form.date_echeance || null, phase_id: form.phase_id || null, projet_id: projetId }
     let tacheId = tache?.tache_id
-
-    if (tache) {
-      // Modification
-      const { error } = await supabase
-        .from('tache')
-        .update(payload)
-        .eq('tache_id', tacheId)
-
-      if (error) {
-        console.log('Erreur modification:', error)
-        setErreur('Erreur lors de la modification')
-        setEnvoi(false)
-        return
-      }
-    } else {
-      // Création
-      const { data, error } = await supabase
-        .from('tache')
-        .insert(payload)
-        .select('tache_id')
-        .single()
-
-      if (error) {
-        console.log('Erreur création:', error)
-        setErreur('Erreur lors de la création')
-        setEnvoi(false)
-        return
-      }
-      tacheId = data.tache_id
-    }
-
-    // Gérer les affectations membres
-    if (tache) {
-      // Supprimer les anciennes affectations
-      await supabase
-        .from('affectation')
-        .delete()
-        .eq('tache_id', tacheId)
-    }
-
-    // Insérer les nouvelles affectations
-    if (membresSelectionnes.length > 0) {
-      const affectations = membresSelectionnes.map(membreId => ({
-        tache_id:  tacheId,
-        membre_id: membreId,
-      }))
-      const { error: errAff } = await supabase
-        .from('affectation')
-        .insert(affectations)
-
-      if (errAff) console.log('Erreur affectations:', errAff)
-    }
-
-    setEnvoi(false)
-    onSuccess()
-    onFermer()
+    if (tache) { const { error } = await supabase.from('tache').update(payload).eq('tache_id', tacheId); if (error) { setErreur('Erreur.'); setEnvoi(false); return } }
+    else { const { data, error } = await supabase.from('tache').insert(payload).select('tache_id').single(); if (error) { setErreur('Erreur.'); setEnvoi(false); return }; tacheId = data.tache_id }
+    await supabase.from('affectation_membre').delete().eq('tache_id', tacheId)
+    if (membresAffectes.length > 0) { await supabase.from('affectation_membre').insert(membresAffectes.map(mid => ({ tache_id: tacheId, membre_id: mid }))) }
+    setEnvoi(false); onSuccess(); onFermer()
   }
+
+  const labelStyle = { fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onFermer} />
-
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg z-10 max-h-[90vh] overflow-y-auto">
-
-        {/* En-tête */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">
-            {tache ? 'Modifier la tâche' : 'Nouvelle tâche'}
-          </h2>
-          <button onClick={onFermer} className="text-gray-400 hover:text-gray-600 text-xl font-light">✕</button>
+    <div className="df-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="df-modal" style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', margin: '16px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px', borderBottom: '1px solid var(--df-border)' }}>
+          <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--df-text-primary)' }}>{tache ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>
+          <button onClick={onFermer} style={{ background: 'none', border: 'none', color: 'var(--df-text-tertiary)', cursor: 'pointer', fontSize: '20px' }}>✕</button>
         </div>
-
-        {/* Corps */}
-        <div className="p-6 space-y-4">
-
-          {/* Titre */}
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {erreur && <div style={{ background: 'var(--df-danger-soft)', border: '1px solid var(--df-danger)', borderRadius: '10px', padding: '10px 14px' }}><p style={{ fontSize: '13px', color: 'var(--df-danger)' }}>{erreur}</p></div>}
+          <div><label style={labelStyle}>Titre <span style={{ color: 'var(--df-danger)' }}>*</span></label><input name="titre" value={form.titre} onChange={handleChange} placeholder="Ex: Nettoyer les données" className="df-input" /></div>
+          <div><label style={labelStyle}>Description</label><textarea name="description" value={form.description} onChange={handleChange} placeholder="Description de la tâche..." rows={3} className="df-input" style={{ resize: 'none' }} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div><label style={labelStyle}>Statut</label><select name="statut" value={form.statut} onChange={handleChange} className="df-input"><option value="a_faire">À faire</option><option value="en_cours">En cours</option><option value="termine">Terminé</option><option value="bloque">Bloqué</option></select></div>
+            <div><label style={labelStyle}>Priorité</label><select name="priorite" value={form.priorite} onChange={handleChange} className="df-input"><option value="basse">Basse</option><option value="moyenne">Moyenne</option><option value="haute">Haute</option></select></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div><label style={labelStyle}>Date début</label><input type="date" name="date_debut" value={form.date_debut} onChange={handleChange} className="df-input" /></div>
+            <div><label style={labelStyle}>Échéance</label><input type="date" name="date_echeance" value={form.date_echeance} onChange={handleChange} className="df-input" /></div>
+          </div>
+          <div><label style={labelStyle}>Phase</label><select name="phase_id" value={form.phase_id} onChange={handleChange} className="df-input"><option value="">Aucune</option>{phases.map(ph => <option key={ph.phase_id} value={ph.phase_id}>{ph.ordre}. {ph.nom}</option>)}</select></div>
           <div>
-            <label className="text-xs text-gray-400 mb-1 block">Titre <span className="text-red-400">*</span></label>
-            <input
-              name="titre"
-              value={form.titre}
-              onChange={changer}
-              placeholder="Titre de la tâche"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Description</label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={changer}
-              placeholder="Description de la tâche..."
-              rows={3}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400 resize-none"
-            />
-          </div>
-
-          {/* Statut + Priorité */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Statut</label>
-              <select
-                name="statut"
-                value={form.statut}
-                onChange={changer}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              >
-                <option value="a_faire">À faire</option>
-                <option value="en_cours">En cours</option>
-                <option value="termine">Terminé</option>
-                <option value="bloque">Bloqué</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Priorité</label>
-              <select
-                name="priorite"
-                value={form.priorite}
-                onChange={changer}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              >
-                <option value="haute">Haute</option>
-                <option value="moyenne">Moyenne</option>
-                <option value="basse">Basse</option>
-              </select>
+            <label style={labelStyle}>Membres assignés</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {membres.map(m => {
+                const selected = membresAffectes.includes(m.membre_id)
+                return (
+                  <button key={m.membre_id} onClick={() => toggleMembre(m.membre_id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease', border: selected ? '1px solid var(--df-accent)' : '1px solid var(--df-border)', background: selected ? 'var(--df-accent-soft)' : 'var(--df-bg-tertiary)', color: selected ? 'var(--df-accent)' : 'var(--df-text-secondary)' }}>
+                    <div className="df-avatar df-avatar-sm" style={{ width: '20px', height: '20px', fontSize: '8px' }}>{m.prenom?.[0]}{m.nom?.[0]}</div>
+                    {m.prenom} {m.nom}
+                  </button>
+                )
+              })}
             </div>
           </div>
-
-          {/* Date début + Échéance */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Date début</label>
-              <input
-                type="date"
-                name="date_debut"
-                value={form.date_debut}
-                onChange={changer}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Échéance</label>
-              <input
-                type="date"
-                name="date_echeance"
-                value={form.date_echeance}
-                onChange={changer}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              />
-            </div>
-          </div>
-
-          {/* Phase */}
-          {phases.length > 0 && (
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Phase</label>
-              <select
-                name="phase_id"
-                value={form.phase_id}
-                onChange={changer}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              >
-                <option value="">Aucune phase</option>
-                {phases.map(p => (
-                  <option key={p.phase_id} value={p.phase_id}>{p.nom}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Membres */}
-          <div>
-            <label className="text-xs text-gray-400 mb-2 block">Membres assignés</label>
-            <div className="space-y-1 max-h-40 overflow-y-auto">
-              {membres.map(m => (
-                <div
-                  key={m.membre_id}
-                  onClick={() => toggleMembre(m.membre_id)}
-                  className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                    membresSelectionnes.includes(m.membre_id)
-                      ? 'bg-indigo-50 border border-indigo-200'
-                      : 'hover:bg-gray-50 border border-transparent'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium text-indigo-600">
-                      {m.prenom?.[0]}{m.nom?.[0]}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-700">{m.prenom} {m.nom}</span>
-                  {membresSelectionnes.includes(m.membre_id) && (
-                    <span className="ml-auto text-indigo-500 text-xs">✓</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {erreur && <p className="text-xs text-red-500">{erreur}</p>}
-
         </div>
-
-        {/* Pied */}
-        <div className="flex justify-end gap-3 px-6 pb-6">
-          <button
-            onClick={onFermer}
-            className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={soumettre}
-            disabled={envoi}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
-          >
-            {envoi ? 'Enregistrement...' : tache ? 'Enregistrer' : 'Créer la tâche'}
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '20px 24px', borderTop: '1px solid var(--df-border)' }}>
+          <button onClick={onFermer} className="df-btn-secondary">Annuler</button>
+          <button onClick={handleSubmit} disabled={envoi} className="df-btn-primary">{envoi ? 'Enregistrement...' : tache ? 'Enregistrer' : 'Créer la tâche'}</button>
         </div>
-
       </div>
     </div>
   )

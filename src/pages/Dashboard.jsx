@@ -3,14 +3,59 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import Chargement from '../components/Chargement'
 
-function MetriqueCard({ label, valeur, couleur, unite }) {
+function StatCard({ label, valeur, unite, couleur, icone }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <p className="text-xs text-gray-400 mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${couleur || 'text-gray-800'}`}>
+    <div className="df-stat-card">
+      <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--df-text-tertiary)', marginBottom: '8px' }}>{label}</p>
+      <p style={{ fontSize: '28px', fontWeight: 800, color: couleur || 'var(--df-text-primary)', lineHeight: 1.1 }}>
         {typeof valeur === 'number' ? valeur.toLocaleString('fr-FR') : valeur}
-        {unite && <span className="text-sm font-normal text-gray-400 ml-1">{unite}</span>}
+        {unite && <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--df-text-tertiary)', marginLeft: '6px' }}>{unite}</span>}
       </p>
+    </div>
+  )
+}
+
+function SectionCard({ titre, count, couleur, children }) {
+  return (
+    <div className="df-card" style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+        {couleur && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: couleur, flexShrink: 0 }} />}
+        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--df-text-primary)', flex: 1 }}>{titre}</h2>
+        {count !== undefined && (
+          <span className="df-badge" style={{ background: 'var(--df-bg-tertiary)', color: 'var(--df-text-tertiary)' }}>{count}</span>
+        )}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function ListItem({ primary, secondary, right, rightSub, rightColor, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '10px 12px',
+        borderRadius: '10px',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'background 0.15s ease',
+      }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.background = 'var(--df-bg-hover)' }}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      <div style={{ minWidth: 0 }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--df-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{primary}</p>
+        {secondary && <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)', marginTop: '2px' }}>{secondary}</p>}
+      </div>
+      {(right || rightSub) && (
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+          {right && <p style={{ fontSize: '13px', fontWeight: 600, color: rightColor || 'var(--df-text-secondary)' }}>{right}</p>}
+          {rightSub && <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', marginTop: '1px' }}>{rightSub}</p>}
+        </div>
+      )}
     </div>
   )
 }
@@ -28,57 +73,19 @@ function Dashboard() {
 
   useEffect(() => {
     async function chargerDonnees() {
-
-      const { data: dataProjets } = await supabase
-        .from('vue_projet_complet')
-        .select('*')
-        .eq('statut', 'en_cours')
-        .order('date_debut', { ascending: false })
-
-      const { data: dataRetards } = await supabase
-        .rpc('get_retard_taches')
-
-      const { data: dataBloques } = await supabase
-        .from('vue_taches_membres')
-        .select('tache_id, titre, projet_id, projet_nom, phase_nom, membres_affectes, date_echeance')
-        .eq('statut', 'bloque')
-        .order('date_echeance', { ascending: true })
-
-      const { data: dataMembres } = await supabase
-        .from('vue_charge_membre')
-        .select('*')
-        .gt('nb_taches_en_cours', 0)
-        .order('nb_taches_en_cours', { ascending: false })
-
+      const { data: dataProjets } = await supabase.from('vue_projet_complet').select('*').eq('statut', 'en_cours').order('date_debut', { ascending: false })
+      const { data: dataRetards } = await supabase.rpc('get_retard_taches')
+      const { data: dataBloques } = await supabase.from('vue_taches_membres').select('tache_id, titre, projet_id, projet_nom, phase_nom, membres_affectes, date_echeance').eq('statut', 'bloque').order('date_echeance', { ascending: true })
+      const { data: dataMembres } = await supabase.from('vue_charge_membre').select('*').gt('nb_taches_en_cours', 0).order('nb_taches_en_cours', { ascending: false })
       const today = new Date().toISOString().split('T')[0]
-      const in30 = new Date()
-      in30.setDate(in30.getDate() + 30)
-      const { data: dataLivrables } = await supabase
-        .from('vue_livrable_projet')
-        .select('*')
-        .gte('date_livraison', today)
-        .lte('date_livraison', in30.toISOString().split('T')[0])
-        .order('date_livraison', { ascending: true })
+      const in30 = new Date(); in30.setDate(in30.getDate() + 30)
+      const { data: dataLivrables } = await supabase.from('vue_livrable_projet').select('*').gte('date_livraison', today).lte('date_livraison', in30.toISOString().split('T')[0]).order('date_livraison', { ascending: true })
+      const { data: dataFacturation } = await supabase.from('vue_facturation').select('*')
+      const { data: dataActivite } = await supabase.from('vue_taches_membres').select('tache_id, titre, projet_nom, projet_id, commentaires_rattaches, nb_commentaires').gt('nb_commentaires', 0).order('updated_at', { ascending: false }).limit(5)
 
-      const { data: dataFacturation } = await supabase
-        .from('vue_facturation')
-        .select('*')
-
-      const { data: dataActivite } = await supabase
-        .from('vue_taches_membres')
-        .select('tache_id, titre, projet_nom, projet_id, commentaires_rattaches, nb_commentaires')
-        .gt('nb_commentaires', 0)
-        .order('updated_at', { ascending: false })
-        .limit(5)
-
-      setProjets(dataProjets || [])
-      setRetards(dataRetards || [])
-      setBloques(dataBloques || [])
-      setMembres(dataMembres || [])
-      setLivrables(dataLivrables || [])
-      setFacturation(dataFacturation || [])
-      setActivite(dataActivite || [])
-      setChargement(false)
+      setProjets(dataProjets || []); setRetards(dataRetards || []); setBloques(dataBloques || [])
+      setMembres(dataMembres || []); setLivrables(dataLivrables || []); setFacturation(dataFacturation || [])
+      setActivite(dataActivite || []); setChargement(false)
     }
     chargerDonnees()
   }, [])
@@ -86,280 +93,191 @@ function Dashboard() {
   const totalFacturable = facturation.reduce((sum, f) => sum + Number(f.montant_heures_facturables), 0)
   const totalFacture    = facturation.reduce((sum, f) => sum + Number(f.montant_facture_forfait), 0)
 
-  if (chargement) return (
-    <div className="max-w-6xl mx-auto p-8">
-      <Chargement nombre={4} />
-    </div>
-  )
+  if (chargement) return <div className="animate-fadeIn"><Chargement nombre={4} /></div>
 
   return (
-    <div className="max-w-6xl mx-auto">
-
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+    <div className="animate-fadeIn">
+      {/* Header */}
+      <div className="df-page-header">
+        <div>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>Tableau de bord</h1>
+          <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>
+            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <MetriqueCard label="Projets en cours" valeur={projets.length} couleur="text-blue-600" />
-        <MetriqueCard label="Tâches en retard" valeur={retards.length} couleur={retards.length > 0 ? 'text-red-500' : 'text-green-600'} />
-        <MetriqueCard label="Membres actifs" valeur={membres.length} couleur="text-indigo-600" />
-        <MetriqueCard label="Total facturable" valeur={totalFacturable} couleur="text-gray-800" unite="FCFA" />
+      {/* Stats */}
+      <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+        <StatCard label="Projets en cours" valeur={projets.length} couleur="var(--df-accent)" />
+        <StatCard label="Tâches en retard" valeur={retards.length} couleur={retards.length > 0 ? 'var(--df-danger)' : 'var(--df-success)'} />
+        <StatCard label="Membres actifs" valeur={membres.length} couleur="var(--df-accent)" />
+        <StatCard label="Total facturable" valeur={totalFacturable} couleur="var(--df-text-primary)" unite="FCFA" />
       </div>
 
+      {/* Alerts */}
       {retards.length > 0 && (
-        <div className="bg-white rounded-xl border border-red-100 p-5 mb-6">
-          <h2 className="text-sm font-semibold text-red-500 mb-4">
-            Tâches en retard ({retards.length})
-          </h2>
-          <div className="space-y-2">
+        <SectionCard titre="Tâches en retard" count={retards.length} couleur="var(--df-danger)">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {retards.slice(0, 5).map(t => (
-              <div
+              <ListItem
                 key={t.tache_id}
-                onClick={() => navigate(`/projets/${t.projet_id ?? ''}`)}
-                className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{t.titre}</p>
-                  <p className="text-xs text-gray-400">{t.projet_nom} · {t.membre_prenom} {t.membre_nom}</p>
-                </div>
-                <span className="text-xs font-medium text-red-500 px-2 py-0.5 rounded-full">
-                  {t.jours_retard}j
-                </span>
-              </div>
+                primary={t.titre}
+                secondary={`${t.projet_nom} · ${t.membre_prenom} ${t.membre_nom}`}
+                right={`${t.jours_retard}j`}
+                rightColor="var(--df-danger)"
+                onClick={() => t.projet_id && navigate(`/projets/${t.projet_id}`)}
+              />
             ))}
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {bloques.length > 0 && (
-        <div className="bg-white rounded-xl border border-orange-100 p-5 mb-6">
-          <h2 className="text-sm font-semibold text-orange-500 mb-4">
-            Tâches bloquées ({bloques.length})
-          </h2>
-          <div className="space-y-2">
-            {bloques.slice(0, 5).map(t => {
-              const membresT = Array.isArray(t.membres_affectes)
-                ? t.membres_affectes
-                : JSON.parse(t.membres_affectes || '[]')
-              const premierMembre = membresT[0]
+        <div style={{ marginTop: '16px' }}>
+          <SectionCard titre="Tâches bloquées" count={bloques.length} couleur="var(--df-warning)">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {bloques.slice(0, 5).map(t => {
+                const membresT = Array.isArray(t.membres_affectes) ? t.membres_affectes : (() => { try { return JSON.parse(t.membres_affectes || '[]') } catch { return [] } })()
+                const premierMembre = membresT[0]
+                return (
+                  <ListItem
+                    key={t.tache_id}
+                    primary={t.titre}
+                    secondary={`${t.projet_nom}${t.phase_nom ? ` · ${t.phase_nom}` : ''}${premierMembre ? ` · ${premierMembre.prenom} ${premierMembre.nom}` : ''}`}
+                    right={t.date_echeance}
+                    rightColor="var(--df-warning)"
+                    onClick={() => t.projet_id && navigate(`/projets/${t.projet_id}`)}
+                  />
+                )
+              })}
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
+      {/* Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px', marginTop: '24px' }}>
+        <SectionCard titre="Projets en cours" count={projets.length}>
+          {projets.length === 0 && <p className="df-empty">Aucun projet en cours.</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {projets.map(p => (
+              <ListItem
+                key={p.projet_id}
+                primary={p.projet_nom}
+                secondary={p.client_nom}
+                right={p.date_fin}
+                onClick={() => navigate(`/projets/${p.projet_id}`)}
+              />
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard titre="Livrables à venir" count={livrables.length}>
+          {livrables.length === 0 && <p className="df-empty">Aucun livrable dans les 30 prochains jours.</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {livrables.map(l => (
+              <ListItem
+                key={l.livrable_id}
+                primary={l.livrable_nom}
+                secondary={l.projet_nom}
+                right={l.date_livraison}
+                rightSub={l.type}
+                rightColor="var(--df-accent)"
+                onClick={() => navigate(`/projets/${l.projet_id}`)}
+              />
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Team charge */}
+      <div style={{ marginTop: '24px' }}>
+        <SectionCard titre={`Charge équipe`} count={`${membres.length} actif(s)`}>
+          {membres.length === 0 && <p className="df-empty">Aucun membre avec des tâches en cours.</p>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
+            {membres.map(m => {
+              const charge = m.nb_taches_en_cours
+              const surcharge = charge >= 5
+              const moyenne = charge >= 3 && charge < 5
+              const barColor = surcharge ? 'var(--df-danger)' : moyenne ? 'var(--df-warning)' : 'var(--df-success)'
               return (
                 <div
-                  key={t.tache_id}
-                  onClick={() => navigate(`/projets/${t.projet_id ?? ''}`)}
-                  className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 transition-colors"
+                  key={m.membre_id}
+                  onClick={() => navigate(`/membres/${m.membre_id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '12px', cursor: 'pointer', transition: 'background 0.15s ease' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--df-bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{t.titre}</p>
-                    <p className="text-xs text-gray-400">
-                      {t.projet_nom}
-                      {t.phase_nom && ` · ${t.phase_nom}`}
-                      {premierMembre && ` · ${premierMembre.prenom} ${premierMembre.nom}`}
-                    </p>
+                  <div className="df-avatar df-avatar-sm">{m.prenom?.[0]}{m.nom?.[0]}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--df-text-primary)' }}>{m.prenom} {m.nom}</p>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: barColor }}>{charge} tâche(s)</span>
+                    </div>
+                    <div className="df-progress-track">
+                      <div className="df-progress-fill" style={{ width: `${Math.min((charge / 7) * 100, 100)}%`, background: barColor }} />
+                    </div>
+                    {m.nb_taches_en_retard > 0 && (
+                      <p style={{ fontSize: '11px', color: 'var(--df-danger)', marginTop: '4px' }}>{m.nb_taches_en_retard} en retard</p>
+                    )}
                   </div>
-                  {t.date_echeance && (
-                    <span className="text-xs font-medium text-orange-500 px-2 py-0.5 rounded-full">
-                      {t.date_echeance}
-                    </span>
-                  )}
                 </div>
               )
             })}
           </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Projets en cours ({projets.length})
-          </h2>
-          {projets.length === 0 && (
-            <p className="text-xs text-gray-400">Aucun projet en cours.</p>
-          )}
-          <div className="space-y-3">
-            {projets.map(p => (
-              <div
-                key={p.projet_id}
-                onClick={() => navigate(`/projets/${p.projet_id}`)}
-                className="flex justify-between items-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors group"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-indigo-600 transition-colors">
-                    {p.projet_nom}
-                  </p>
-                  <p className="text-xs text-gray-400">{p.client_nom}</p>
-                </div>
-                <span className="text-xs text-gray-400">{p.date_fin}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Livrables à venir ({livrables.length})
-          </h2>
-          {livrables.length === 0 && (
-            <p className="text-xs text-gray-400">Aucun livrable dans les 30 prochains jours.</p>
-          )}
-          <div className="space-y-3">
-            {livrables.map(l => (
-              <div
-                key={l.livrable_id}
-                onClick={() => navigate(`/projets/${l.projet_id}`)}
-                className="flex justify-between items-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{l.livrable_nom}</p>
-                  <p className="text-xs text-gray-400">{l.projet_nom}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-medium text-indigo-600">{l.date_livraison}</p>
-                  <p className="text-xs text-gray-400">{l.type}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+        </SectionCard>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">
-          Charge équipe ({membres.length} membre(s) actif(s))
-        </h2>
-        {membres.length === 0 && (
-          <p className="text-xs text-gray-400">Aucun membre avec des tâches en cours.</p>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {membres.map(m => {
-            const charge = m.nb_taches_en_cours
-            const surcharge = charge >= 5
-            const moyenne = charge >= 3 && charge < 5
-            return (
-              <div
-                key={m.membre_id}
-                onClick={() => navigate(`/membres/${m.membre_id}`)}
-                className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-medium text-indigo-600">
-                    {m.prenom?.[0]}{m.nom?.[0]}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="text-sm font-medium text-gray-800 truncate">
-                      {m.prenom} {m.nom}
-                    </p>
-                    <span className={`text-xs font-medium ml-2 flex-shrink-0 ${
-                      surcharge ? 'text-red-500' :
-                      moyenne   ? 'text-amber-500' :
-                                  'text-green-600'
-                    }`}>
-                      {charge} tâche(s)
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div
-                      className={`h-1.5 rounded-full transition-all ${
-                        surcharge ? 'bg-red-400' :
-                        moyenne   ? 'bg-amber-400' :
-                                    'bg-green-400'
-                      }`}
-                      style={{ width: `${Math.min((charge / 7) * 100, 100)}%` }}
-                    />
-                  </div>
-                  {m.nb_taches_en_retard > 0 && (
-                    <p className="text-xs text-red-400 mt-0.5">
-                      {m.nb_taches_en_retard} en retard
-                    </p>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Activité récente</h2>
-          {activite.length === 0 && (
-            <p className="text-xs text-gray-400">Aucune activité récente.</p>
-          )}
-          <div className="space-y-3">
+      {/* Bottom grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px', marginTop: '24px' }}>
+        <SectionCard titre="Activité récente">
+          {activite.length === 0 && <p className="df-empty">Aucune activité récente.</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {activite.map((t, index) => {
-              const commentaires = Array.isArray(t.commentaires_rattaches)
-                ? t.commentaires_rattaches
-                : JSON.parse(t.commentaires_rattaches || '[]')
+              const commentaires = Array.isArray(t.commentaires_rattaches) ? t.commentaires_rattaches : (() => { try { return JSON.parse(t.commentaires_rattaches || '[]') } catch { return [] } })()
               const dernier = commentaires[commentaires.length - 1]
               if (!dernier) return null
               return (
                 <div
                   key={`${t.tache_id}-${index}`}
-                  onClick={() => navigate(`/projets/${t.projet_id ?? ''}`)}
-                  className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                  onClick={() => t.projet_id && navigate(`/projets/${t.projet_id}`)}
+                  style={{ padding: '10px 12px', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.15s ease' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--df-bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <p className="text-xs font-medium text-gray-600">
-                      {dernier.membre_prenom} {dernier.membre_nom}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {dernier.date ? new Date(dernier.date).toLocaleDateString('fr-FR') : ''}
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)' }}>{dernier.membre_prenom} {dernier.membre_nom}</p>
+                    <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{dernier.date ? new Date(dernier.date).toLocaleDateString('fr-FR') : ''}</p>
                   </div>
-                  <p className="text-sm text-gray-700">{dernier.contenu}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{t.projet_nom} · {t.titre}</p>
+                  <p style={{ fontSize: '13px', color: 'var(--df-text-primary)' }}>{dernier.contenu}</p>
+                  <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{t.projet_nom} · {t.titre}</p>
                 </div>
               )
             })}
           </div>
-        </div>
+        </SectionCard>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Facturation globale</h2>
-          <div className="space-y-3">
+        <SectionCard titre="Facturation globale">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {facturation.map(f => (
-              <div
+              <ListItem
                 key={f.projet_id}
+                primary={f.projet_nom}
+                secondary={f.client_nom}
+                right={`${Number(f.montant_facture_forfait).toLocaleString('fr-FR')} FCFA`}
+                rightSub={f.statut_paiement === 'payee' ? 'Payé' : f.statut_paiement === 'en_retard' ? 'En retard' : 'En attente'}
+                rightColor={f.statut_paiement === 'payee' ? 'var(--df-success)' : f.statut_paiement === 'en_retard' ? 'var(--df-danger)' : 'var(--df-warning)'}
                 onClick={() => navigate(`/projets/${f.projet_id}`)}
-                className="flex justify-between items-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{f.projet_nom}</p>
-                  <p className="text-xs text-gray-400">{f.client_nom}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-medium text-gray-700">
-                    {Number(f.montant_facture_forfait).toLocaleString('fr-FR')} FCFA
-                  </p>
-                  <p className={`text-xs font-medium ${
-                    f.statut_paiement === 'payee'      ? 'text-green-600' :
-                    f.statut_paiement === 'en_retard'  ? 'text-red-500'   : 'text-amber-500'
-                  }`}>
-                    {f.statut_paiement === 'payee'     ? 'Payé'      :
-                     f.statut_paiement === 'en_retard' ? 'En retard' : 'En attente'}
-                  </p>
-                </div>
-              </div>
+              />
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-            <p className="text-xs text-gray-400">Total facturé</p>
-            <p className="text-sm font-bold text-gray-800">
-              {totalFacture.toLocaleString('fr-FR')} FCFA
-            </p>
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--df-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>Total facturé</p>
+            <p style={{ fontSize: '15px', fontWeight: 800, color: 'var(--df-text-primary)' }}>{totalFacture.toLocaleString('fr-FR')} FCFA</p>
           </div>
-        </div>
-
+        </SectionCard>
       </div>
-
     </div>
   )
 }

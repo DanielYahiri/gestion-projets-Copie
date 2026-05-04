@@ -4,23 +4,14 @@ import { supabase } from '../supabase'
 import Chargement from '../components/Chargement'
 import FormulaireClient from '../components/FormulaireClient'
 
-// Badge statut paiement global
 function BadgePaiement({ statut }) {
-  const styles = {
-    a_jour:     'text-green-600',
-    en_attente: 'text-black-500',
-    en_retard:  'text-red-500',
+  const config = {
+    a_jour:     { label: 'À jour',     bg: 'var(--df-success-soft)', color: 'var(--df-success)' },
+    en_attente: { label: 'En attente', bg: 'var(--df-warning-soft)', color: 'var(--df-warning)' },
+    en_retard:  { label: 'En retard',  bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' },
   }
-  const labels = {
-    a_jour:     'À jour',
-    en_attente: 'En attente',
-    en_retard:  'En retard',
-  }
-  return (
-    <span className={`text-xs font-medium ${styles[statut]}`}>
-      {labels[statut]}
-    </span>
-  )
+  const s = config[statut] || config.en_attente
+  return <span className="df-badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 
 function Clients() {
@@ -30,99 +21,72 @@ function Clients() {
   const navigate = useNavigate()
 
   async function chargerClients() {
-    const { data, error } = await supabase
-      .from('vue_client_complet')
-      .select('*')
-      .order('client_nom', { ascending: true })
-    if (error) { console.log('Erreur :', error); return }
-    setClients(data)
-    setChargement(false)
+    const { data, error } = await supabase.from('vue_client_complet').select('*').order('client_nom', { ascending: true })
+    if (error) { console.log('Erreur :', error); setChargement(false); return }
+    setClients(data); setChargement(false)
   }
 
   useEffect(() => { chargerClients() }, [])
 
   return (
-    <div className="max-w-6xl mx-auto">
-
-      {/* En-tête */}
-      <div className="flex justify-between items-center mb-8">
+    <div className="animate-fadeIn">
+      <div className="df-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-sm text-gray-400 mt-1">{clients.length} client(s)</p>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>Clients</h1>
+          <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{clients.length} client(s)</p>
         </div>
-        <button
-          onClick={() => setFormulaireOuvert(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-         >
-         + Nouveau client
-        </button>
+        <button onClick={() => setFormulaireOuvert(true)} className="df-btn-primary">+ Nouveau client</button>
       </div>
 
       {chargement && <Chargement nombre={3} />}
 
-      {/* Grille de cartes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
         {clients.map(client => (
           <div
             key={client.client_id}
             onClick={() => navigate(`/clients/${client.client_id}`)}
-            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group"
+            className="df-card df-card-interactive"
+            style={{ padding: '24px', cursor: 'pointer' }}
           >
-            {/* En-tête carte */}
-            <div className="flex justify-between items-start mb-3">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
-                <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
-                  {client.client_nom}
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">{client.secteur_activite}</p>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--df-text-primary)' }}>{client.client_nom}</h3>
+                <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)', marginTop: '2px' }}>{client.secteur_activite}</p>
               </div>
               <BadgePaiement statut={client.statut_paiement_global} />
             </div>
 
-            {/* Stats projets */}
-            <div className="grid grid-cols-3 gap-2 my-4 py-3 border-y border-gray-100">
-              <div className="text-center">
-                <p className="text-lg font-bold text-gray-800">{client.nb_projets_total}</p>
-                <p className="text-xs text-gray-400">Total</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-blue-600">{client.nb_projets_en_cours}</p>
-                <p className="text-xs text-gray-400">En cours</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-green-600">{client.nb_projets_termines}</p>
-                <p className="text-xs text-gray-400">Terminés</p>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', margin: '16px 0', padding: '14px 0', borderTop: '1px solid var(--df-border)', borderBottom: '1px solid var(--df-border)' }}>
+              {[
+                { val: client.nb_projets_total, label: 'Total', color: 'var(--df-text-primary)' },
+                { val: client.nb_projets_en_cours, label: 'En cours', color: 'var(--df-accent)' },
+                { val: client.nb_projets_termines, label: 'Terminés', color: 'var(--df-success)' },
+              ].map(item => (
+                <div key={item.label} style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 800, color: item.color }}>{item.val}</p>
+                  <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{item.label}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Dernier projet */}
             {client.dernier_projet_en_cours && (
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Projet en cours</p>
-                <p className="text-sm font-medium text-gray-700 truncate">
-                  {client.dernier_projet_en_cours}
-                </p>
+              <div style={{ marginBottom: '12px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>Projet en cours</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--df-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.dernier_projet_en_cours}</p>
               </div>
             )}
 
-            {/* Montant facturé */}
-            <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-              <p className="text-xs text-gray-400">Total facturé</p>
-              <p className="text-sm font-semibold text-gray-700">
-                {client.montant_total_facture.toLocaleString('fr-FR')} FCFA
-              </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid var(--df-border)' }}>
+              <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>Total facturé</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--df-text-primary)' }}>{(client.montant_total_facture ?? 0).toLocaleString('fr-FR')} FCFA</p>
             </div>
-
           </div>
         ))}
-
-        {formulaireOuvert && (
-          <FormulaireClient
-            onFermer={() => setFormulaireOuvert(false)}
-            onSuccess={() => chargerClients()}
-          />
-        )}
       </div>
+
+      {formulaireOuvert && (
+        <FormulaireClient onFermer={() => setFormulaireOuvert(false)} onSuccess={() => chargerClients()} />
+      )}
     </div>
   )
 }

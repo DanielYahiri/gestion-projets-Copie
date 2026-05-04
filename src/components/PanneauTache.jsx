@@ -3,293 +3,83 @@ import { useState, useEffect } from 'react'
 import { useMembreActif } from '../context/MembreContext'
 import FormulaireTache from './FormulaireTache'
 
-// Badge priorité
 function BadgePriorite({ priorite }) {
-  const styles = {
-    haute:   'bg-red-50 text-red-500',
-    moyenne: 'bg-amber-50 text-amber-600',
-    basse:   'bg-gray-100 text-gray-500',
-  }
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[priorite]}`}>
-      {priorite}
-    </span>
-  )
+  const config = { haute: { bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' }, moyenne: { bg: 'var(--df-warning-soft)', color: 'var(--df-warning)' }, basse: { bg: 'var(--df-bg-tertiary)', color: 'var(--df-text-tertiary)' } }
+  const s = config[priorite] || config.basse
+  return <span className="df-badge" style={{ background: s.bg, color: s.color }}>{priorite}</span>
 }
 
-// Badge statut lecture seule
 function BadgeStatut({ statut }) {
-  const styles = {
-    a_faire:  'bg-gray-100 text-gray-500',
-    en_cours: 'bg-blue-50 text-blue-600',
-    termine:  'bg-green-50 text-green-600',
-    bloque:   'bg-red-50 text-red-500',
-  }
-  const labels = {
-    a_faire:  'À faire',
-    en_cours: 'En cours',
-    termine:  'Terminé',
-    bloque:   'Bloqué',
-  }
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[statut]}`}>
-      {labels[statut]}
-    </span>
-  )
+  const config = { a_faire: { label: 'À faire', bg: 'var(--df-bg-tertiary)', color: 'var(--df-text-tertiary)' }, en_cours: { label: 'En cours', bg: 'var(--df-accent-soft)', color: 'var(--df-accent)' }, termine: { label: 'Terminé', bg: 'var(--df-success-soft)', color: 'var(--df-success)' }, bloque: { label: 'Bloqué', bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' } }
+  const s = config[statut] || config.a_faire
+  return <span className="df-badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 
-// Dropdown statut cliquable
 function DropdownStatut({ statut, onChange }) {
-  const styles = {
-    a_faire:  'bg-gray-100 text-gray-500',
-    en_cours: 'bg-blue-50 text-blue-600',
-    termine:  'bg-green-50 text-green-600',
-    bloque:   'bg-red-50 text-red-500',
-  }
-  const labels = {
-    a_faire:  'À faire',
-    en_cours: 'En cours',
-    termine:  'Terminé',
-    bloque:   'Bloqué',
-  }
+  const config = { a_faire: { bg: 'var(--df-bg-tertiary)', color: 'var(--df-text-tertiary)' }, en_cours: { bg: 'var(--df-accent-soft)', color: 'var(--df-accent)' }, termine: { bg: 'var(--df-success-soft)', color: 'var(--df-success)' }, bloque: { bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' } }
+  const s = config[statut] || config.a_faire
   return (
-    <select
-      value={statut}
-      onChange={e => onChange(e.target.value)}
-      className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-300 ${styles[statut]}`}
-    >
-      {Object.entries(labels).map(([val, label]) => (
-        <option key={val} value={val}>{label}</option>
-      ))}
+    <select value={statut} onChange={e => onChange(e.target.value)}
+      style={{ fontSize: '12px', fontWeight: 600, padding: '4px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', outline: 'none', background: s.bg, color: s.color }}>
+      <option value="a_faire">À faire</option>
+      <option value="en_cours">En cours</option>
+      <option value="termine">Terminé</option>
+      <option value="bloque">Bloqué</option>
     </select>
   )
 }
 
-// Formulaire logger des heures — accès complet uniquement
 function FormulaireTempsPassé({ tacheId, entree = null, onFermer, onSuccess }) {
   const [membres, setMembres] = useState([])
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
-
-  const [form, setForm] = useState({
-    membre_id:           '',
-    date:                new Date().toISOString().split('T')[0],
-    heures:              '',
-    taux_horaire:        '',
-    description_travail: '',
-    est_facture:         false,
-  })
+  const [form, setForm] = useState({ membre_id: '', date: new Date().toISOString().split('T')[0], heures: '', taux_horaire: '', description_travail: '', est_facture: false })
 
   useEffect(() => {
-    async function chargerMembres() {
-      const { data } = await supabase
-        .from('membre')
-        .select('membre_id, nom, prenom')
-        .order('nom')
-      setMembres(data || [])
-    }
+    async function chargerMembres() { const { data } = await supabase.from('membre').select('membre_id, nom, prenom').order('nom'); setMembres(data || []) }
     chargerMembres()
-
-    if (entree) {
-      setForm({
-        membre_id:           entree.membre_id,
-        date:                entree.date,
-        heures:              entree.heures,
-        taux_horaire:        entree.taux_horaire,
-        description_travail: entree.description_travail || '',
-        est_facture:         entree.est_facture === true,
-      })
-    }
+    if (entree) setForm({ membre_id: entree.membre_id, date: entree.date, heures: entree.heures, taux_horaire: entree.taux_horaire, description_travail: entree.description_travail || '', est_facture: entree.est_facture === true })
   }, [])
 
-  function handleChange(e) {
-    const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value
-    setForm({ ...form, [e.target.name]: val })
-  }
+  function handleChange(e) { const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value; setForm({ ...form, [e.target.name]: val }) }
 
   async function handleSubmit() {
-    if (!form.membre_id)                                      { setErreur('Veuillez sélectionner un membre.'); return }
-    if (!form.heures || Number(form.heures) <= 0)             { setErreur("Le nombre d'heures est requis."); return }
+    if (!form.membre_id) { setErreur('Veuillez sélectionner un membre.'); return }
+    if (!form.heures || Number(form.heures) <= 0) { setErreur("Le nombre d'heures est requis."); return }
     if (!form.taux_horaire || Number(form.taux_horaire) <= 0) { setErreur('Le taux horaire est requis.'); return }
-    if (!form.date)                                           { setErreur('La date est requise.'); return }
-    setErreur('')
-    setEnvoi(true)
-
-    if (entree) {
-      const { error } = await supabase
-        .from('temps_passe')
-        .update({
-          membre_id:           form.membre_id,
-          date:                form.date,
-          heures:              Number(form.heures),
-          taux_horaire:        Number(form.taux_horaire),
-          description_travail: form.description_travail || null,
-          est_facture:         form.est_facture,
-        })
-        .eq('id', entree.id)
-
-      if (error) {
-        console.log('Erreur modification temps:', error)
-        setErreur('Une erreur est survenue.')
-        setEnvoi(false)
-        return
-      }
-    } else {
-      const { error } = await supabase
-        .from('temps_passe')
-        .insert({
-          membre_id:           form.membre_id,
-          tache_id:            tacheId,
-          date:                form.date,
-          heures:              Number(form.heures),
-          taux_horaire:        Number(form.taux_horaire),
-          description_travail: form.description_travail || null,
-          est_facture:         form.est_facture,
-        })
-
-      if (error) {
-        console.log('Erreur temps passé:', error)
-        setErreur('Une erreur est survenue.')
-        setEnvoi(false)
-        return
-      }
-    }
-
-    setEnvoi(false)
-    onSuccess()
-    onFermer()
+    if (!form.date) { setErreur('La date est requise.'); return }
+    setErreur(''); setEnvoi(true)
+    const payload = { membre_id: form.membre_id, date: form.date, heures: Number(form.heures), taux_horaire: Number(form.taux_horaire), description_travail: form.description_travail || null, est_facture: form.est_facture }
+    if (entree) { const { error } = await supabase.from('temps_passe').update(payload).eq('id', entree.id); if (error) { setErreur('Une erreur est survenue.'); setEnvoi(false); return } }
+    else { const { error } = await supabase.from('temps_passe').insert({ ...payload, tache_id: tacheId }); if (error) { setErreur('Une erreur est survenue.'); setEnvoi(false); return } }
+    setEnvoi(false); onSuccess(); onFermer()
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onFermer} />
-
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">
-            {entree ? 'Modifier les heures' : 'Logger des heures'}
-          </h2>
-          <button onClick={onFermer} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    <div className="df-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
+      <div className="df-modal" style={{ width: '100%', maxWidth: '480px', margin: '16px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px', borderBottom: '1px solid var(--df-border)' }}>
+          <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--df-text-primary)' }}>{entree ? 'Modifier les heures' : 'Logger des heures'}</h2>
+          <button onClick={onFermer} style={{ background: 'none', border: 'none', color: 'var(--df-text-tertiary)', cursor: 'pointer', fontSize: '20px' }}>✕</button>
         </div>
-
-        <div className="p-6 space-y-4">
-
-          {erreur && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-              <p className="text-sm text-red-600">{erreur}</p>
-            </div>
-          )}
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">
-              Membre <span className="text-red-400">*</span>
-            </label>
-            <select
-              name="membre_id"
-              value={form.membre_id}
-              onChange={handleChange}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-            >
-              <option value="">Sélectionner...</option>
-              {membres.map(m => (
-                <option key={m.membre_id} value={m.membre_id}>
-                  {m.prenom} {m.nom}
-                </option>
-              ))}
-            </select>
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {erreur && <div style={{ background: 'var(--df-danger-soft)', border: '1px solid var(--df-danger)', borderRadius: '10px', padding: '10px 14px' }}><p style={{ fontSize: '13px', color: 'var(--df-danger)' }}>{erreur}</p></div>}
+          <div><label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }}>Membre <span style={{ color: 'var(--df-danger)' }}>*</span></label><select name="membre_id" value={form.membre_id} onChange={handleChange} className="df-input"><option value="">Sélectionner...</option>{membres.map(m => <option key={m.membre_id} value={m.membre_id}>{m.prenom} {m.nom}</option>)}</select></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div><label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }}>Date <span style={{ color: 'var(--df-danger)' }}>*</span></label><input type="date" name="date" value={form.date} onChange={handleChange} className="df-input" /></div>
+            <div><label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }}>Heures <span style={{ color: 'var(--df-danger)' }}>*</span></label><input type="number" name="heures" value={form.heures} onChange={handleChange} placeholder="Ex: 2.5" min="0.5" step="0.5" className="df-input" /></div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 font-medium block mb-1">
-                Date <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="date"
-                name="date"
-                value={form.date}
-                onChange={handleChange}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium block mb-1">
-                Heures <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="number"
-                name="heures"
-                value={form.heures}
-                onChange={handleChange}
-                placeholder="Ex: 2.5"
-                min="0.5"
-                step="0.5"
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-              />
-            </div>
+          <div><label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }}>Taux horaire (FCFA) <span style={{ color: 'var(--df-danger)' }}>*</span></label><input type="number" name="taux_horaire" value={form.taux_horaire} onChange={handleChange} placeholder="Ex: 15000" className="df-input" /></div>
+          <div><label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }}>Description du travail</label><textarea name="description_travail" value={form.description_travail} onChange={handleChange} placeholder="Décrivez le travail effectué..." rows={3} className="df-input" style={{ resize: 'none' }} /></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--df-bg-tertiary)', borderRadius: '10px', padding: '12px 14px' }}>
+            <input type="checkbox" name="est_facture" id="est_facture" checked={form.est_facture === true} onChange={handleChange} style={{ width: '16px', height: '16px', accentColor: 'var(--df-accent)', cursor: 'pointer' }} />
+            <label htmlFor="est_facture" style={{ fontSize: '13px', color: 'var(--df-text-primary)', cursor: 'pointer' }}>Ces heures sont facturables</label>
           </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">
-              Taux horaire (FCFA) <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="number"
-              name="taux_horaire"
-              value={form.taux_horaire}
-              onChange={handleChange}
-              placeholder="Ex: 15000"
-              min="0"
-              step="500"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">Description du travail</label>
-            <textarea
-              name="description_travail"
-              value={form.description_travail}
-              onChange={handleChange}
-              placeholder="Décrivez le travail effectué..."
-              rows={3}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400 resize-none"
-            />
-          </div>
-
-          <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-3">
-            <input
-              type="checkbox"
-              name="est_facture"
-              id="est_facture"
-              checked={form.est_facture === true}
-              onChange={handleChange}
-              className="w-4 h-4 accent-indigo-600 cursor-pointer"
-            />
-            <label htmlFor="est_facture" className="text-sm text-gray-700 cursor-pointer">
-              Ces heures sont facturables
-            </label>
-          </div>
-
         </div>
-
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
-          <button
-            onClick={onFermer}
-            className="text-sm text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={envoi}
-            className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 px-6 py-2 rounded-lg transition-colors font-medium"
-          >
-            {envoi ? 'Enregistrement...' : entree ? 'Enregistrer' : 'Logger les heures'}
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '20px 24px', borderTop: '1px solid var(--df-border)' }}>
+          <button onClick={onFermer} className="df-btn-secondary">Annuler</button>
+          <button onClick={handleSubmit} disabled={envoi} className="df-btn-primary">{envoi ? 'Enregistrement...' : entree ? 'Enregistrer' : 'Logger les heures'}</button>
         </div>
-
       </div>
     </div>
   )
@@ -298,7 +88,6 @@ function FormulaireTempsPassé({ tacheId, entree = null, onFermer, onSuccess }) 
 function PanneauTache({ tacheId, onFermer }) {
   const { membreActif } = useMembreActif()
   const estCollaborateur = membreActif?.role === 'collaborateur'
-
   const [tache, setTache] = useState(null)
   const [tempsEntrees, setTempsEntrees] = useState([])
   const [chargement, setChargement] = useState(true)
@@ -311,263 +100,132 @@ function PanneauTache({ tacheId, onFermer }) {
 
   useEffect(() => {
     if (!tacheId) return
-
     async function chargerTache() {
       setChargement(true)
-
-      const { data, error } = await supabase
-        .from('vue_taches_membres')
-        .select('*')
-        .eq('tache_id', tacheId)
-        .single()
-
-      if (error) { console.log('Erreur :', error); return }
+      const { data, error } = await supabase.from('vue_taches_membres').select('*').eq('tache_id', tacheId).single()
+      if (error) { setChargement(false); return }
       setTache(data)
-
-      if (!estCollaborateur) {
-        const { data: dataTemps } = await supabase
-          .from('temps_passe')
-          .select('*, membre:membre_id(nom, prenom)')
-          .eq('tache_id', tacheId)
-          .order('date', { ascending: false })
-        setTempsEntrees(dataTemps || [])
-      }
-
+      if (!estCollaborateur) { const { data: dataTemps } = await supabase.from('temps_passe').select('*, membre:membre_id(nom, prenom)').eq('tache_id', tacheId).order('date', { ascending: false }); setTempsEntrees(dataTemps || []) }
       setChargement(false)
     }
     chargerTache()
   }, [tacheId])
 
   async function rechargerTache() {
-    const { data } = await supabase
-      .from('vue_taches_membres')
-      .select('*')
-      .eq('tache_id', tacheId)
-      .single()
+    const { data } = await supabase.from('vue_taches_membres').select('*').eq('tache_id', tacheId).single()
     if (data) setTache(data)
-
-    if (!estCollaborateur) {
-      const { data: dataTemps } = await supabase
-        .from('temps_passe')
-        .select('*, membre:membre_id(nom, prenom)')
-        .eq('tache_id', tacheId)
-        .order('date', { ascending: false })
-      setTempsEntrees(dataTemps || [])
-    }
+    if (!estCollaborateur) { const { data: dataTemps } = await supabase.from('temps_passe').select('*, membre:membre_id(nom, prenom)').eq('tache_id', tacheId).order('date', { ascending: false }); setTempsEntrees(dataTemps || []) }
   }
 
-  const membres = tache
-    ? (Array.isArray(tache.membres_affectes)
-        ? tache.membres_affectes
-        : JSON.parse(tache.membres_affectes || '[]'))
-    : []
-
-  const commentaires = tache
-    ? (Array.isArray(tache.commentaires_rattaches)
-        ? tache.commentaires_rattaches
-        : JSON.parse(tache.commentaires_rattaches || '[]'))
-    : []
-
-  // Règle universelle — affecté à la tâche = peut modifier et changer le statut
+  const membres = tache ? (Array.isArray(tache.membres_affectes) ? tache.membres_affectes : (() => { try { return JSON.parse(tache.membres_affectes || '[]') } catch { return [] } })()) : []
+  const commentaires = tache ? (Array.isArray(tache.commentaires_rattaches) ? tache.commentaires_rattaches : (() => { try { return JSON.parse(tache.commentaires_rattaches || '[]') } catch { return [] } })()) : []
   const estAffecte = membres.some(m => m.membre_id === membreActif?.membre_id)
-  // Accès complet non collaborateur peut tout modifier
-  const peutModifier = !estCollaborateur ? estAffecte : estAffecte
+  const peutModifier = !estCollaborateur || estAffecte
 
   async function changerStatut(nouveauStatut) {
-    if (majStatut || !estAffecte) return
+    if (majStatut || (!estAffecte && estCollaborateur)) return
     setMajStatut(true)
-
-    const { error } = await supabase
-      .from('tache')
-      .update({ statut: nouveauStatut })
-      .eq('tache_id', tacheId)
-
-    if (error) { console.log('Erreur statut:', error); setMajStatut(false); return }
-
-    setTache(prev => ({ ...prev, statut: nouveauStatut }))
-    setMajStatut(false)
+    const { error } = await supabase.from('tache').update({ statut: nouveauStatut }).eq('tache_id', tacheId)
+    if (error) { setMajStatut(false); return }
+    setTache(prev => ({ ...prev, statut: nouveauStatut })); setMajStatut(false)
   }
 
   async function envoyerCommentaire() {
     if (!nouveauCommentaire.trim() || !membreActif) return
     setEnvoi(true)
-
-    const { error } = await supabase
-      .from('commentaire')
-      .insert({
-        contenu:   nouveauCommentaire,
-        date:      new Date().toISOString(),
-        membre_id: membreActif.membre_id,
-        tache_id:  tacheId,
-      })
-
-    if (error) { console.log('Erreur commentaire:', error); setEnvoi(false); return }
-
-    setNouveauCommentaire('')
-    setEnvoi(false)
-    rechargerTache()
+    const { error } = await supabase.from('commentaire').insert({ contenu: nouveauCommentaire, date: new Date().toISOString(), membre_id: membreActif.membre_id, tache_id: tacheId })
+    if (error) { setEnvoi(false); return }
+    setNouveauCommentaire(''); setEnvoi(false); rechargerTache()
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex justify-end">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="animate-overlayIn" style={{ flex: 1, background: 'var(--df-bg-overlay)', backdropFilter: 'blur(4px)' }} onClick={onFermer} />
 
-      <div className="flex-1 bg-black bg-opacity-30" onClick={onFermer} />
-
-      <div className="w-full max-w-lg bg-white h-full overflow-y-auto shadow-xl">
-
+      <div className="df-panel">
         {chargement ? (
-          <p className="text-gray-400 text-sm p-6">Chargement...</p>
+          <p style={{ color: 'var(--df-text-tertiary)', fontSize: '14px', padding: '24px' }}>Chargement...</p>
         ) : (
           <>
-            {/* En-tête */}
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex justify-between items-start mb-3">
-                <h2 className="text-lg font-bold text-gray-900 pr-4">{tache.titre}</h2>
-                <div className="flex items-center gap-2">
-                  {peutModifier && (
-                    <button
-                      onClick={() => setFormulaireModif(true)}
-                      className="text-xs text-gray-400 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 px-2 py-1 rounded-lg transition-all"
-                    >
-                      Modifier
-                    </button>
-                  )}
-                  <button
-                    onClick={onFermer}
-                    className="text-gray-400 hover:text-gray-600 text-xl font-light"
-                  >
-                    ✕
-                  </button>
+            {/* Header */}
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--df-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--df-text-primary)', paddingRight: '16px', flex: 1 }}>{tache.titre}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {peutModifier && <button onClick={() => setFormulaireModif(true)} className="df-btn-secondary" style={{ fontSize: '12px', padding: '6px 12px' }}>Modifier</button>}
+                  <button onClick={onFermer} style={{ background: 'none', border: 'none', color: 'var(--df-text-tertiary)', cursor: 'pointer', fontSize: '20px', padding: '4px' }}>✕</button>
                 </div>
               </div>
-
-              {/* Statut — dropdown si affecté, badge lecture seule sinon */}
-              <div className="flex gap-2 flex-wrap items-center">
-                {estAffecte ? (
-                  <>
-                    <DropdownStatut statut={tache.statut} onChange={changerStatut} />
-                    {majStatut && (
-                      <span className="text-xs text-gray-400 italic">Mise à jour...</span>
-                    )}
-                  </>
-                ) : (
-                  <BadgeStatut statut={tache.statut} />
-                )}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {(estAffecte || !estCollaborateur) ? (
+                  <><DropdownStatut statut={tache.statut} onChange={changerStatut} />{majStatut && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', fontStyle: 'italic' }}>Mise à jour...</span>}</>
+                ) : <BadgeStatut statut={tache.statut} />}
                 <BadgePriorite priorite={tache.priorite} />
-                {tache.est_en_retard && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-500">
-                    En retard
-                  </span>
-                )}
+                {tache.est_en_retard && <span className="df-badge" style={{ background: 'var(--df-danger-soft)', color: 'var(--df-danger)' }}>En retard</span>}
               </div>
             </div>
 
-            {/* Corps */}
-            <div className="p-6 space-y-6">
-
-              {/* Infos générales */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Projet</p>
-                  <p className="text-sm font-medium text-gray-700">{tache.projet_nom}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Phase</p>
-                  <p className="text-sm font-medium text-gray-700">{tache.phase_nom ?? '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Début</p>
-                  <p className="text-sm font-medium text-gray-700">{tache.date_debut ?? '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Échéance</p>
-                  <p className="text-sm font-medium text-gray-700">{tache.date_echeance ?? '—'}</p>
-                </div>
+            {/* Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* Info */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {[{ label: 'Projet', value: tache.projet_nom }, { label: 'Phase', value: tache.phase_nom ?? '—' }, { label: 'Début', value: tache.date_debut ?? '—' }, { label: 'Échéance', value: tache.date_echeance ?? '—' }].map(item => (
+                  <div key={item.label}>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{item.label}</p>
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--df-text-primary)' }}>{item.value}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Description */}
               {tache.description && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Description</p>
-                  <p className="text-sm text-gray-600 leading-relaxed">{tache.description}</p>
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Description</p>
+                  <p style={{ fontSize: '14px', color: 'var(--df-text-secondary)', lineHeight: 1.6 }}>{tache.description}</p>
                 </div>
               )}
 
-              {/* Membres affectés */}
+              {/* Members */}
               <div>
-                <p className="text-xs text-gray-400 mb-2">Membres affectés</p>
-                {membres.length === 0 && (
-                  <p className="text-sm text-gray-400">Aucun membre assigné</p>
-                )}
-                <div className="space-y-2">
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Membres affectés</p>
+                {membres.length === 0 && <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)' }}>Aucun membre assigné</p>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {membres.map(m => (
-                    <div key={m.membre_id} className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="text-xs font-medium text-indigo-600">
-                          {m.prenom?.[0]}{m.nom?.[0]}
-                        </span>
-                      </div>
+                    <div key={m.membre_id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div className="df-avatar df-avatar-sm">{m.prenom?.[0]}{m.nom?.[0]}</div>
                       <div>
-                        <p className="text-sm font-medium text-gray-700">{m.prenom} {m.nom}</p>
-                        <p className="text-xs text-gray-400">{m.role}</p>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--df-text-primary)' }}>{m.prenom} {m.nom}</p>
+                        <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{m.role}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Heures loggées — accès complet uniquement */}
+              {/* Hours */}
               {!estCollaborateur && (
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <p className="text-xs text-gray-400">Heures loggées</p>
-                    <button
-                      onClick={() => { setEntreeModif(null); setFormulaireTemps(true) }}
-                      className="text-xs text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors"
-                    >
-                      + Logger des heures
-                    </button>
+                <div style={{ background: 'var(--df-bg-tertiary)', borderRadius: '14px', padding: '18px', border: '1px solid var(--df-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Heures loggées</p>
+                    <button onClick={() => { setEntreeModif(null); setFormulaireTemps(true) }} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-accent)', background: 'var(--df-accent-soft)', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s ease' }}>+ Logger des heures</button>
                   </div>
-
                   {tache.total_heures > 0 ? (
-                    <p className="text-lg font-bold text-gray-800 mb-3">
-                      {tache.total_heures}h
-                      <span className="text-sm font-normal text-gray-400 ml-2">
-                        — {tache.montant_facturable.toLocaleString('fr-FR')} FCFA facturables
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-400 mb-3">Aucune heure loggée</p>
-                  )}
-
+                    <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--df-text-primary)', marginBottom: '12px' }}>{tache.total_heures}h <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--df-text-tertiary)' }}>— {(tache.montant_facturable ?? 0).toLocaleString('fr-FR')} FCFA facturables</span></p>
+                  ) : <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginBottom: '12px' }}>Aucune heure loggée</p>}
                   {tempsEntrees.length > 0 && (
-                    <div className="space-y-2 border-t border-gray-200 pt-2">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid var(--df-border)', paddingTop: '10px' }}>
                       {tempsEntrees.map(t => (
-                        <div key={t.id} className="flex justify-between items-center bg-white rounded-lg px-3 py-2">
+                        <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--df-bg-card)', borderRadius: '10px', padding: '10px 14px' }}>
                           <div>
-                            <p className="text-xs font-medium text-gray-700">
-                              {t.membre?.prenom} {t.membre?.nom}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {t.date} · {t.est_facture === true ? 'Facturable' : 'Non facturable'}
-                            </p>
-                            {t.description_travail && (
-                              <p className="text-xs text-gray-400 italic mt-0.5">{t.description_travail}</p>
-                            )}
+                            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-primary)' }}>{t.membre?.prenom} {t.membre?.nom}</p>
+                            <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{t.date} · {t.est_facture === true ? 'Facturable' : 'Non facturable'}</p>
+                            {t.description_travail && <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', fontStyle: 'italic', marginTop: '2px' }}>{t.description_travail}</p>}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-right">
-                              <p className="text-sm font-bold text-gray-800">{t.heures}h</p>
-                              <p className="text-xs text-gray-400">
-                                {Number(t.montant_calcule).toLocaleString('fr-FR')} FCFA
-                              </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ textAlign: 'right' }}>
+                              <p style={{ fontSize: '14px', fontWeight: 800, color: 'var(--df-text-primary)' }}>{t.heures}h</p>
+                              <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{Number(t.montant_calcule).toLocaleString('fr-FR')} FCFA</p>
                             </div>
-                            <button
-                              onClick={() => { setEntreeModif(t); setFormulaireTemps(true) }}
-                              className="text-xs text-gray-400 hover:text-indigo-500 border border-gray-200 hover:border-indigo-300 px-2 py-1 rounded-lg transition-all"
-                            >
-                              Modifier
-                            </button>
+                            <button onClick={() => { setEntreeModif(t); setFormulaireTemps(true) }} className="df-btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }}>Modifier</button>
                           </div>
                         </div>
                       ))}
@@ -576,85 +234,39 @@ function PanneauTache({ tacheId, onFermer }) {
                 </div>
               )}
 
-              {/* Commentaires */}
+              {/* Comments */}
               <div>
-                <p className="text-xs text-gray-400 mb-3">
-                  Commentaires ({commentaires.length})
-                </p>
-                {commentaires.length === 0 && (
-                  <p className="text-sm text-gray-400">Aucun commentaire</p>
-                )}
-                <div className="space-y-3">
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Commentaires ({commentaires.length})</p>
+                {commentaires.length === 0 && <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)' }}>Aucun commentaire</p>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {commentaires.map((c, index) => (
-                    <div key={index} className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-medium text-gray-600">
-                          {c.membre_prenom} {c.membre_nom}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {c.date ? new Date(c.date).toLocaleDateString('fr-FR') : ''}
-                        </span>
+                    <div key={index} style={{ background: 'var(--df-bg-tertiary)', borderRadius: '12px', padding: '14px', border: '1px solid var(--df-border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)' }}>{c.membre_prenom} {c.membre_nom}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{c.date ? new Date(c.date).toLocaleDateString('fr-FR') : ''}</span>
                       </div>
-                      <p className="text-sm text-gray-700">{c.contenu}</p>
+                      <p style={{ fontSize: '13px', color: 'var(--df-text-primary)', lineHeight: 1.5 }}>{c.contenu}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Formulaire commentaire — membreActif automatique */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <span className="text-xs font-medium text-indigo-600">
-                        {membreActif?.prenom?.[0]}{membreActif?.nom?.[0]}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      Commenter en tant que <span className="font-medium text-gray-600">{membreActif?.prenom} {membreActif?.nom}</span>
-                    </p>
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--df-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <div className="df-avatar df-avatar-sm" style={{ width: '24px', height: '24px', fontSize: '9px' }}>{membreActif?.prenom?.[0]}{membreActif?.nom?.[0]}</div>
+                    <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>Commenter en tant que <span style={{ fontWeight: 600, color: 'var(--df-text-secondary)' }}>{membreActif?.prenom} {membreActif?.nom}</span></p>
                   </div>
-
-                  <textarea
-                    value={nouveauCommentaire}
-                    onChange={e => setNouveauCommentaire(e.target.value)}
-                    placeholder="Écrire un commentaire..."
-                    rows={3}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 mb-2 text-gray-700 focus:outline-none focus:border-indigo-400 resize-none"
-                  />
-
-                  <button
-                    onClick={envoyerCommentaire}
-                    disabled={!nouveauCommentaire.trim() || envoi}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  >
+                  <textarea value={nouveauCommentaire} onChange={e => setNouveauCommentaire(e.target.value)} placeholder="Écrire un commentaire..." rows={3} className="df-input" style={{ resize: 'none', marginBottom: '10px' }} />
+                  <button onClick={envoyerCommentaire} disabled={!nouveauCommentaire.trim() || envoi} className="df-btn-primary" style={{ width: '100%' }}>
                     {envoi ? 'Envoi...' : 'Envoyer'}
                   </button>
                 </div>
               </div>
-
             </div>
           </>
         )}
 
-        {/* Formulaire modification tâche */}
-        {formulaireModif && peutModifier && (
-          <FormulaireTache
-            tache={tache}
-            projetId={tache.projet_id}
-            onFermer={() => setFormulaireModif(false)}
-            onSuccess={rechargerTache}
-          />
-        )}
-
-        {/* Formulaire temps passé — accès complet uniquement */}
-        {formulaireTemps && !estCollaborateur && (
-          <FormulaireTempsPassé
-            tacheId={tacheId}
-            entree={entreeModif}
-            onFermer={() => { setFormulaireTemps(false); setEntreeModif(null) }}
-            onSuccess={rechargerTache}
-          />
-        )}
-
+        {formulaireModif && peutModifier && <FormulaireTache tache={tache} projetId={tache.projet_id} onFermer={() => setFormulaireModif(false)} onSuccess={rechargerTache} />}
+        {formulaireTemps && !estCollaborateur && <FormulaireTempsPassé tacheId={tacheId} entree={entreeModif} onFermer={() => { setFormulaireTemps(false); setEntreeModif(null) }} onSuccess={rechargerTache} />}
       </div>
     </div>
   )

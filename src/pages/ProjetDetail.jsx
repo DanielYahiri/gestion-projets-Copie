@@ -10,129 +10,101 @@ import Chargement from '../components/Chargement'
 import FormulaireProjet from '../components/FormulaireProjet'
 
 function BadgeStatut({ statut }) {
-  const labels = {
-    en_cours:   'En cours',
-    terminé:    'Terminé',
-    en_attente: 'En attente',
-    annulé:     'Annulé',
+  const config = {
+    en_cours:   { label: 'En cours',   bg: 'var(--df-accent-soft)', color: 'var(--df-accent)' },
+    terminé:    { label: 'Terminé',    bg: 'var(--df-success-soft)', color: 'var(--df-success)' },
+    en_attente: { label: 'En attente', bg: 'var(--df-warning-soft)', color: 'var(--df-warning)' },
+    annulé:     { label: 'Annulé',     bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' },
   }
-  return (
-    <span className="text-xs font-medium text-gray-500">
-      {labels[statut]}
-    </span>
-  )
-}
-
-function Onglet({ label, actif, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-        actif
-          ? 'border-indigo-600 text-indigo-600'
-          : 'border-transparent text-gray-500 hover:text-gray-800'
-      }`}
-    >
-      {label}
-    </button>
-  )
+  const s = config[statut] || config.en_attente
+  return <span className="df-badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 
 function ProjetDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [projet, setProjet] = useState(null)
+  const [chargement, setChargement] = useState(true)
   const [ongletActif, setOngletActif] = useState('taches')
   const [afficherFormulaire, setAfficherFormulaire] = useState(false)
   const { membreActif } = useMembreActif()
   const estCollaborateur = membreActif?.role === 'collaborateur'
 
   async function chargerProjet() {
-    const { data, error } = await supabase
-      .from('vue_projet_complet')
-      .select('*')
-      .eq('projet_id', id)
-      .single()
-
-    if (error) { console.log('Erreur :', error); return }
-    setProjet(data)
+    setChargement(true)
+    const { data, error } = await supabase.from('vue_projet_complet').select('*').eq('projet_id', id).single()
+    if (error) { console.log('Erreur :', error); setChargement(false); return }
+    setProjet(data); setChargement(false)
   }
 
-  useEffect(() => {
-    chargerProjet()
-  }, [id])
+  useEffect(() => { chargerProjet() }, [id])
 
-  if (!projet) return <div className="p-8"><Chargement nombre={3} /></div>
+  const onglets = [
+    { key: 'taches', label: 'Tâches' },
+    { key: 'phases', label: 'Phases' },
+    { key: 'livrables', label: 'Livrables' },
+    ...(!estCollaborateur ? [{ key: 'financier', label: 'Financier' }] : []),
+  ]
+
+  if (chargement) return <div className="animate-fadeIn" style={{ padding: '32px' }}><Chargement nombre={3} /></div>
+  if (!projet) return (
+    <div className="animate-fadeIn">
+      <button onClick={() => navigate('/projets')} className="df-back-btn">← Retour</button>
+      <p style={{ color: 'var(--df-text-tertiary)', fontSize: '14px' }}>Projet introuvable.</p>
+    </div>
+  )
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="animate-fadeIn">
+      <button onClick={() => navigate('/projets')} className="df-back-btn">← Retour aux projets</button>
 
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-indigo-600 bg-white border border-gray-200 hover:border-indigo-300 px-4 py-2 rounded-lg transition-all mb-6"
-      >
-        ← Retour
-      </button>
-
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{projet.projet_nom}</h1>
-            <p className="text-sm text-gray-500 mt-1">{projet.description}</p>
+      {/* Header card */}
+      <div className="df-card" style={{ padding: '28px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>{projet.projet_nom}</h1>
+            {projet.description && <p style={{ fontSize: '14px', color: 'var(--df-text-secondary)', marginTop: '6px' }}>{projet.description}</p>}
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             <BadgeStatut statut={projet.statut} />
-            {/* Bouton modifier — masqué pour les collaborateurs */}
             {!estCollaborateur && (
-              <button
-                onClick={() => setAfficherFormulaire(true)}
-                className="text-xs text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition-all"
-              >
-                Modifier
-              </button>
+              <button onClick={() => setAfficherFormulaire(true)} className="df-btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>Modifier</button>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
-          <div>
-            <p className="text-xs text-gray-400">Client</p>
-            <p className="text-sm font-medium text-gray-700">{projet.client_nom}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Début</p>
-            <p className="text-sm font-medium text-gray-700">{projet.date_debut}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Fin prévue</p>
-            <p className="text-sm font-medium text-gray-700">{projet.date_fin}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Type de données</p>
-            <p className="text-sm font-medium text-gray-700">{projet.type_donnees}</p>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', paddingTop: '20px', borderTop: '1px solid var(--df-border)' }}>
+          {[
+            { label: 'Client', value: projet.client_nom },
+            { label: 'Début', value: projet.date_debut },
+            { label: 'Fin prévue', value: projet.date_fin },
+            { label: 'Type de données', value: projet.type_donnees },
+          ].map(item => (
+            <div key={item.label}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{item.label}</p>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--df-text-primary)' }}>{item.value || '—'}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Onglets — Financier masqué pour les collaborateurs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6">
-        <Onglet label="Tâches"    actif={ongletActif === 'taches'}    onClick={() => setOngletActif('taches')} />
-        <Onglet label="Phases"    actif={ongletActif === 'phases'}    onClick={() => setOngletActif('phases')} />
-        <Onglet label="Livrables" actif={ongletActif === 'livrables'} onClick={() => setOngletActif('livrables')} />
-        {!estCollaborateur && (
-          <Onglet label="Financier" actif={ongletActif === 'financier'} onClick={() => setOngletActif('financier')} />
-        )}
+      {/* Tabs */}
+      <div className="df-tabs">
+        {onglets.map(o => (
+          <button
+            key={o.key}
+            onClick={() => setOngletActif(o.key)}
+            className={`df-tab ${ongletActif === o.key ? 'active' : ''}`}
+          >
+            {o.label}
+          </button>
+        ))}
       </div>
 
-      <div>
-        {ongletActif === 'taches'    && (
-          <Kanban
-            projetId={id}
-            membreActif={membreActif}
-            estCollaborateur={estCollaborateur}
-          />
-        )}
-        {ongletActif === 'phases'    && <Phases projetId={id} />}
+      {/* Tab content */}
+      <div className="animate-fadeIn" key={ongletActif}>
+        {ongletActif === 'taches' && <Kanban projetId={id} membreActif={membreActif} estCollaborateur={estCollaborateur} />}
+        {ongletActif === 'phases' && <Phases projetId={id} />}
         {ongletActif === 'livrables' && <Livrables projetId={id} />}
         {ongletActif === 'financier' && !estCollaborateur && <Financier projetId={id} />}
       </div>
@@ -141,13 +113,9 @@ function ProjetDetail() {
         <FormulaireProjet
           projetExistant={projet}
           onFermer={() => setAfficherFormulaire(false)}
-          onSuccess={() => {
-            setProjet(null)
-            chargerProjet()
-          }}
+          onSuccess={() => { setProjet(null); chargerProjet() }}
         />
       )}
-
     </div>
   )
 }

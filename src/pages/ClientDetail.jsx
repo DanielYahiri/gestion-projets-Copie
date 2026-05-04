@@ -5,35 +5,24 @@ import Chargement from '../components/Chargement'
 import FormulaireClient from '../components/FormulaireClient'
 
 function BadgeStatut({ statut }) {
-  const labels = {
-    en_cours:   'En cours',
-    terminé:    'Terminé',
-    en_attente: 'En attente',
-    annulé:     'Annulé',
+  const config = {
+    en_cours:   { label: 'En cours',   bg: 'var(--df-accent-soft)', color: 'var(--df-accent)' },
+    terminé:    { label: 'Terminé',    bg: 'var(--df-success-soft)', color: 'var(--df-success)' },
+    en_attente: { label: 'En attente', bg: 'var(--df-warning-soft)', color: 'var(--df-warning)' },
+    annulé:     { label: 'Annulé',     bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' },
   }
-  return (
-    <span className="text-xs font-medium text-gray-500">
-      {labels[statut]}
-    </span>
-  )
+  const s = config[statut] || config.en_attente
+  return <span className="df-badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 
 function BadgePaiement({ statut }) {
-  const styles = {
-    a_jour:     'text-green-600',
-    en_attente: 'text-amber-500',
-    en_retard:  'text-red-500',
+  const config = {
+    a_jour:     { label: 'À jour',     bg: 'var(--df-success-soft)', color: 'var(--df-success)' },
+    en_attente: { label: 'En attente', bg: 'var(--df-warning-soft)', color: 'var(--df-warning)' },
+    en_retard:  { label: 'En retard',  bg: 'var(--df-danger-soft)', color: 'var(--df-danger)' },
   }
-  const labels = {
-    a_jour:     'À jour',
-    en_attente: 'En attente',
-    en_retard:  'En retard',
-  }
-  return (
-    <span className={`text-xs font-medium ${styles[statut]}`}>
-      {labels[statut]}
-    </span>
-  )
+  const s = config[statut] || config.en_attente
+  return <span className="df-badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 
 function ClientDetail() {
@@ -44,152 +33,105 @@ function ClientDetail() {
   const [chargement, setChargement] = useState(true)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
 
-    async function chargerDonnees() {
-    const { data: dataClient, error: errClient } = await supabase
-      .from('vue_client_complet')
-      .select('*')
-      .eq('client_id', id)
-      .single()
-
-    if (errClient) { console.log('Erreur client:', errClient); return }
+  async function chargerDonnees() {
+    const { data: dataClient, error: errClient } = await supabase.from('vue_client_complet').select('*').eq('client_id', id).single()
+    if (errClient) { console.log('Erreur client:', errClient); setChargement(false); return }
     setClient(dataClient)
-
-    const { data: dataProjets, error: errProjets } = await supabase
-      .from('vue_projet_complet')
-      .select('*')
-      .eq('client_id', id)
-
-    if (errProjets) { console.log('Erreur projets:', errProjets); return }
-    setProjets(dataProjets)
-    setChargement(false)
+    const { data: dataProjets, error: errProjets } = await supabase.from('vue_projet_complet').select('*').eq('client_id', id)
+    if (errProjets) { console.log('Erreur projets:', errProjets); setChargement(false); return }
+    setProjets(dataProjets); setChargement(false)
   }
 
   useEffect(() => { chargerDonnees() }, [id])
-    chargerDonnees()
 
-
-  if (!client) return <div className="p-8"><Chargement nombre={3} /></div>
+  if (chargement) return <div className="animate-fadeIn" style={{ padding: '32px' }}><Chargement nombre={3} /></div>
+  if (!client) return (
+    <div className="animate-fadeIn">
+      <button onClick={() => navigate('/clients')} className="df-back-btn">← Retour</button>
+      <p style={{ color: 'var(--df-text-tertiary)', fontSize: '14px' }}>Client introuvable.</p>
+    </div>
+  )
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="animate-fadeIn">
+      <button onClick={() => navigate('/clients')} className="df-back-btn">← Retour aux clients</button>
 
-      {/* Retour */}
-      <button
-       onClick={() => navigate(-1)}
-       className="flex items-center gap-2 text-sm text-gray-500 hover:text-indigo-600 bg-white border border-gray-200 hover:border-indigo-300 px-4 py-2 rounded-lg transition-all mb-6"
-       >
-  ← Retour
-     </button>
+      {/* Header */}
+      <div className="df-card" style={{ padding: '28px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>{client.client_nom}</h1>
+            <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{client.secteur_activite}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <BadgePaiement statut={client.statut_paiement_global} />
+            <button onClick={() => setFormulaireOuvert(true)} className="df-btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>Modifier</button>
+          </div>
+        </div>
 
-      {/* En-tête client */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{client.client_nom}</h1>
-            <p className="text-sm text-gray-400 mt-1">{client.secteur_activite}</p>
+        {client.dernier_projet_en_cours && (
+          <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--df-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>Projet en cours</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--df-accent)' }}>{client.dernier_projet_en_cours}</p>
           </div>
-          <div className="flex items-center gap-3">
-          <BadgePaiement statut={client.statut_paiement_global} />
-          <button
-          onClick={() => setFormulaireOuvert(true)}
-           className="text-sm text-gray-500 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition-all"
-           >
-           Modifier
-        </button>
-        </div>
-        </div>
-        {/* Dernier projet en cours */}
-{client.dernier_projet_en_cours && (
-  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-2">
-    <p className="text-xs text-gray-400">Projet en cours</p>
-    <p className="text-sm font-medium text-indigo-600">
-      {client.dernier_projet_en_cours}
-    </p>
-  </div>
-)}
-        {/* Infos contact */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
-          <div>
-            <p className="text-xs text-gray-400">Email</p>
-            <p className="text-sm font-medium text-gray-700">{client.email_contact ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Téléphone</p>
-            <p className="text-sm font-medium text-gray-700">{client.telephone ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Adresse</p>
-            <p className="text-sm font-medium text-gray-700">{client.adresse ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Premier contrat</p>
-            <p className="text-sm font-medium text-gray-700">{client.date_premier_contrat ?? '—'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Métriques */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-gray-800">{client.nb_projets_total}</p>
-          <p className="text-xs text-gray-400 mt-1">Projets total</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{client.nb_projets_en_cours}</p>
-          <p className="text-xs text-gray-400 mt-1">En cours</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-green-600">{client.nb_projets_termines}</p>
-          <p className="text-xs text-gray-400 mt-1">Terminés</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-gray-800">
-            {client.montant_total_facture.toLocaleString('fr-FR')}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">FCFA facturés</p>
-        </div>
-      </div>
-
-      {/* Liste des projets */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Projets ({projets.length})
-        </h2>
-        {projets.length === 0 && (
-          <p className="text-gray-400 text-sm">Aucun projet pour ce client.</p>
         )}
-        <div className="space-y-3">
-          {projets.map(projet => (
-            <div
-              key={projet.projet_id}
-              onClick={() => navigate(`/projets/${projet.projet_id}`)}
-              className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm hover:border-indigo-200 transition-all cursor-pointer flex justify-between items-center group"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
-                  {projet.projet_nom}
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {projet.date_debut} → {projet.date_fin}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <p className="text-xs text-gray-400">{projet.type_donnees}</p>
-                <BadgeStatut statut={projet.statut} />
-              </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', paddingTop: '16px', borderTop: '1px solid var(--df-border)' }}>
+          {[
+            { label: 'Email', value: client.email_contact },
+            { label: 'Téléphone', value: client.telephone },
+            { label: 'Adresse', value: client.adresse },
+            { label: 'Premier contrat', value: client.date_premier_contrat },
+          ].map(item => (
+            <div key={item.label}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{item.label}</p>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--df-text-primary)' }}>{item.value ?? '—'}</p>
             </div>
           ))}
-        {formulaireOuvert && (
-        <FormulaireClient
-          client={client}
-          onFermer={() => setFormulaireOuvert(false)}
-          onSuccess={() => chargerDonnees()}
-        />
-      )}
-          
         </div>
       </div>
 
+      {/* Stats */}
+      <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        {[
+          { val: client.nb_projets_total, label: 'Projets total', color: 'var(--df-text-primary)' },
+          { val: client.nb_projets_en_cours, label: 'En cours', color: 'var(--df-accent)' },
+          { val: client.nb_projets_termines, label: 'Terminés', color: 'var(--df-success)' },
+          { val: `${(client.montant_total_facture ?? 0).toLocaleString('fr-FR')}`, label: 'FCFA facturés', color: 'var(--df-text-primary)' },
+        ].map(item => (
+          <div key={item.label} className="df-stat-card" style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: item.color }}>{item.val}</p>
+            <p style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{item.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Projects list */}
+      <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--df-text-primary)', marginBottom: '16px' }}>Projets ({projets.length})</h2>
+      {projets.length === 0 && <p className="df-empty">Aucun projet pour ce client.</p>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {projets.map(projet => (
+          <div
+            key={projet.projet_id}
+            onClick={() => navigate(`/projets/${projet.projet_id}`)}
+            className="df-card df-card-interactive"
+            style={{ padding: '18px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--df-text-primary)' }}>{projet.projet_nom}</h3>
+              <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)', marginTop: '2px' }}>{projet.date_debut} → {projet.date_fin}</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>{projet.type_donnees}</p>
+              <BadgeStatut statut={projet.statut} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {formulaireOuvert && (
+        <FormulaireClient client={client} onFermer={() => setFormulaireOuvert(false)} onSuccess={() => chargerDonnees()} />
+      )}
     </div>
   )
 }

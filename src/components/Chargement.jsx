@@ -1,18 +1,18 @@
-// Skeleton card — bloc gris animé qui imite la forme d'une carte
+// Skeleton card — shimmer animated placeholder
 function SkeletonCarte() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
-      <div className="flex justify-between mb-3">
-        <div className="h-4 bg-gray-200 rounded w-1/3" />
-        <div className="h-4 bg-gray-100 rounded w-16" />
+    <div className="df-card" style={{ padding: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div className="df-skeleton" style={{ height: '16px', width: '40%' }} />
+        <div className="df-skeleton" style={{ height: '16px', width: '60px' }} />
       </div>
-      <div className="grid grid-cols-3 gap-2 my-4 py-3 border-y border-gray-100">
-        <div className="h-8 bg-gray-100 rounded" />
-        <div className="h-8 bg-gray-100 rounded" />
-        <div className="h-8 bg-gray-100 rounded" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', margin: '16px 0', padding: '12px 0', borderTop: '1px solid var(--df-border)', borderBottom: '1px solid var(--df-border)' }}>
+        <div className="df-skeleton" style={{ height: '32px' }} />
+        <div className="df-skeleton" style={{ height: '32px' }} />
+        <div className="df-skeleton" style={{ height: '32px' }} />
       </div>
-      <div className="h-3 bg-gray-100 rounded w-2/3 mb-2" />
-      <div className="h-3 bg-gray-100 rounded w-1/2" />
+      <div className="df-skeleton" style={{ height: '12px', width: '66%', marginBottom: '8px' }} />
+      <div className="df-skeleton" style={{ height: '12px', width: '50%' }} />
     </div>
   )
 }
@@ -20,7 +20,7 @@ function SkeletonCarte() {
 // Affiche N skeleton cards
 function Chargement({ nombre = 3 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
       {Array.from({ length: nombre }).map((_, i) => (
         <SkeletonCarte key={i} />
       ))}

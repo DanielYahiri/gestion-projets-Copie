@@ -1,331 +1,95 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-function FormulaireProjet({ onFermer, onSuccess, projetExistant }) {
+function FormulaireProjet({ projetExistant = null, onFermer, onSuccess }) {
   const [clients, setClients] = useState([])
-  const [membres, setMembres] = useState([])
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
-  const [chargementForm, setChargementForm] = useState(true)
-
   const [form, setForm] = useState({
-    nom:             projetExistant?.projet_nom      || '',
-    description:     projetExistant?.description     || '',
-    date_debut:      projetExistant?.date_debut      || '',
-    date_fin:        projetExistant?.date_fin        || '',
-    statut:          projetExistant?.statut          || 'en_attente',
-    type_donnees:    projetExistant?.type_donnees    || '',
-    montant_facture: projetExistant?.montant_facture || '',
-    date_facturation: projetExistant?.date_facturation || '', 
-    statut_paiement: projetExistant?.statut_paiement || 'en_attente',
-    client_id:       projetExistant?.client_id       || '',
-    membre_id:   projetExistant?.membre_id   || '',
+    nom: '', description: '', statut: 'en_attente', type_donnees: '', date_debut: '', date_fin: '', client_id: '',
+    montant_facture_forfait: '', notes_facturation: '', date_facture: '', date_paiement: '', statut_paiement: 'en_attente',
   })
 
   useEffect(() => {
-    async function chargerDonnees() {
-      const { data: dataClients } = await supabase
-        .from('client')
-        .select('client_id, nom')
-        .order('nom')
-
-      const { data: dataMembres } = await supabase
-        .from('membre')
-        .select('membre_id, nom, prenom, role')
-        .order('nom')
-
-      setClients(dataClients || [])
-      setMembres(dataMembres || [])
-      setChargementForm(false)
+    async function init() {
+      const { data } = await supabase.from('client').select('client_id, nom').order('nom')
+      setClients(data || [])
     }
-    chargerDonnees()
-  }, [])
+    init()
+    if (projetExistant) {
+      setForm({
+        nom: projetExistant.projet_nom ?? '', description: projetExistant.description ?? '',
+        statut: projetExistant.statut ?? 'en_attente', type_donnees: projetExistant.type_donnees ?? '',
+        date_debut: projetExistant.date_debut ?? '', date_fin: projetExistant.date_fin ?? '',
+        client_id: projetExistant.client_id ?? '', montant_facture_forfait: projetExistant.montant_facture_forfait ?? '',
+        notes_facturation: projetExistant.notes_facturation ?? '', date_facture: projetExistant.date_facture ?? '',
+        date_paiement: projetExistant.date_paiement ?? '', statut_paiement: projetExistant.statut_paiement ?? 'en_attente',
+      })
+    }
+  }, [projetExistant])
 
-  function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
+  function handleChange(e) { setForm({ ...form, [e.target.name]: e.target.value }) }
 
   async function handleSubmit() {
-    if (!form.nom.trim())  { setErreur('Le nom du projet est requis.'); return }
-    if (!form.client_id)   { setErreur('Veuillez sélectionner un client.'); return }
-    if (!form.date_debut)  { setErreur('La date de début est requise.'); return }
-    setErreur('')
-    setEnvoi(true)
-
-    const payload = {
-      nom:             form.nom,
-      description:     form.description     || null,
-      date_debut:      form.date_debut,
-      date_fin:        form.date_fin        || null,
-      statut:          form.statut,
-      type_donnees:    form.type_donnees    || null,
-      montant_facture: form.montant_facture ? Number(form.montant_facture) : 0,
-      date_facturation: form.date_facturation || null,
-      statut_paiement: form.statut_paiement,
-      client_id:       form.client_id,
-      membre_id:   form.membre_id   || null,
-    }
-
+    if (!form.nom.trim()) { setErreur('Le nom du projet est requis.'); return }
+    if (!form.client_id) { setErreur('Le client est requis.'); return }
+    setErreur(''); setEnvoi(true)
+    const payload = { nom: form.nom, description: form.description || null, statut: form.statut, type_donnees: form.type_donnees || null, date_debut: form.date_debut || null, date_fin: form.date_fin || null, client_id: form.client_id || null }
     let error
     if (projetExistant) {
-      const res = await supabase
-        .from('projet')
-        .update(payload)
-        .eq('projet_id', projetExistant.projet_id)
+      const facture = { montant_facture_forfait: form.montant_facture_forfait || null, notes_facturation: form.notes_facturation || null, date_facture: form.date_facture || null, date_paiement: form.date_paiement || null, statut_paiement: form.statut_paiement }
+      const res = await supabase.from('projet').update(payload).eq('projet_id', projetExistant.projet_id)
       error = res.error
+      if (!error) { await supabase.from('facturation').upsert({ projet_id: projetExistant.projet_id, ...facture }, { onConflict: 'projet_id' }) }
     } else {
-      const res = await supabase
-        .from('projet')
-        .insert(payload)
+      const res = await supabase.from('projet').insert(payload).select('projet_id').single()
       error = res.error
+      if (!error && res.data) { await supabase.from('facturation').insert({ projet_id: res.data.projet_id, montant_facture_forfait: form.montant_facture_forfait || null, notes_facturation: form.notes_facturation || null, date_facture: form.date_facture || null, date_paiement: form.date_paiement || null, statut_paiement: form.statut_paiement }) }
     }
-
-    if (error) {
-      console.log('Erreur:', error)
-      setErreur('Une erreur est survenue. Veuillez réessayer.')
-      setEnvoi(false)
-      return
-    }
-
-    setEnvoi(false)
-    onSuccess()
-    onFermer()
+    if (error) { setErreur('Une erreur est survenue.'); setEnvoi(false); return }
+    setEnvoi(false); onSuccess(); onFermer()
   }
 
+  const inputStyle = "df-input"
+  const labelStyle = { fontSize: '12px', fontWeight: 600, color: 'var(--df-text-secondary)', display: 'block', marginBottom: '6px' }
+
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black bg-opacity-40"
-        onClick={onFermer}
-      />
-
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
-
-        {/* En-tête */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">
-            {projetExistant ? 'Modifier le projet' : 'Nouveau projet'}
-          </h2>
-          <button
-            onClick={onFermer}
-            className="text-gray-400 hover:text-gray-600 text-xl"
-          >
-            ✕
-          </button>
+    <div className="df-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="df-modal" style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', margin: '16px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px', borderBottom: '1px solid var(--df-border)' }}>
+          <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--df-text-primary)' }}>{projetExistant ? 'Modifier le projet' : 'Nouveau projet'}</h2>
+          <button onClick={onFermer} style={{ background: 'none', border: 'none', color: 'var(--df-text-tertiary)', cursor: 'pointer', fontSize: '20px' }}>✕</button>
         </div>
-
-        {/* Corps */}
-        <div className="p-6 space-y-4">
-
-          {chargementForm ? (
-            <div className="space-y-4 animate-pulse">
-              <div className="h-8 bg-gray-100 rounded-lg w-full" />
-              <div className="h-20 bg-gray-100 rounded-lg w-full" />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-8 bg-gray-100 rounded-lg" />
-                <div className="h-8 bg-gray-100 rounded-lg" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-8 bg-gray-100 rounded-lg" />
-                <div className="h-8 bg-gray-100 rounded-lg" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-8 bg-gray-100 rounded-lg" />
-                <div className="h-8 bg-gray-100 rounded-lg" />
-              </div>
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {erreur && <div style={{ background: 'var(--df-danger-soft)', border: '1px solid var(--df-danger)', borderRadius: '10px', padding: '10px 14px' }}><p style={{ fontSize: '13px', color: 'var(--df-danger)' }}>{erreur}</p></div>}
+          <div><label style={labelStyle}>Nom du projet <span style={{ color: 'var(--df-danger)' }}>*</span></label><input name="nom" value={form.nom} onChange={handleChange} placeholder="Ex: Analyse de données X" className={inputStyle} /></div>
+          <div><label style={labelStyle}>Description</label><textarea name="description" value={form.description} onChange={handleChange} placeholder="Décrivez le projet..." rows={3} className={inputStyle} style={{ resize: 'none' }} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div><label style={labelStyle}>Client <span style={{ color: 'var(--df-danger)' }}>*</span></label><select name="client_id" value={form.client_id} onChange={handleChange} className={inputStyle}><option value="">Sélectionner...</option>{clients.map(c => <option key={c.client_id} value={c.client_id}>{c.nom}</option>)}</select></div>
+            <div><label style={labelStyle}>Statut</label><select name="statut" value={form.statut} onChange={handleChange} className={inputStyle}><option value="en_attente">En attente</option><option value="en_cours">En cours</option><option value="terminé">Terminé</option><option value="annulé">Annulé</option></select></div>
+          </div>
+          <div><label style={labelStyle}>Type de données</label><input name="type_donnees" value={form.type_donnees} onChange={handleChange} placeholder="Ex: CSV, SQL, API..." className={inputStyle} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div><label style={labelStyle}>Date de début</label><input type="date" name="date_debut" value={form.date_debut} onChange={handleChange} className={inputStyle} /></div>
+            <div><label style={labelStyle}>Date de fin</label><input type="date" name="date_fin" value={form.date_fin} onChange={handleChange} className={inputStyle} /></div>
+          </div>
+          <div style={{ borderTop: '1px solid var(--df-border)', paddingTop: '16px', marginTop: '4px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--df-text-primary)', marginBottom: '12px' }}>Facturation</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div><label style={labelStyle}>Montant forfait (FCFA)</label><input type="number" name="montant_facture_forfait" value={form.montant_facture_forfait} onChange={handleChange} placeholder="Ex: 5000000" className={inputStyle} /></div>
+              <div><label style={labelStyle}>Statut paiement</label><select name="statut_paiement" value={form.statut_paiement} onChange={handleChange} className={inputStyle}><option value="en_attente">En attente</option><option value="payee">Payé</option><option value="en_retard">En retard</option></select></div>
             </div>
-          ) : (
-            <>
-              {erreur && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                  <p className="text-sm text-red-600">{erreur}</p>
-                </div>
-              )}
-
-              {/* Nom */}
-              <div>
-                <label className="text-xs text-gray-500 font-medium block mb-1">
-                  Nom du projet <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="nom"
-                  value={form.nom}
-                  onChange={handleChange}
-                  placeholder="Ex: Segmentation clients Orange CI"
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="text-xs text-gray-500 font-medium block mb-1">Description</label>
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  placeholder="Décrivez le projet..."
-                  rows={3}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400 resize-none"
-                />
-              </div>
-
-              {/* Client + Obtenu par */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">
-                    Client <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    name="client_id"
-                    value={form.client_id}
-                    onChange={handleChange}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  >
-                    <option value="">Sélectionner...</option>
-                    {clients.map(c => (
-                      <option key={c.client_id} value={c.client_id}>{c.nom}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">Obtenu par</label>
-                  <select
-                    name="membre_id"
-                    value={form.membre_id}
-                    onChange={handleChange}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  >
-                    <option value="">Sélectionner...</option>
-                    {membres.map(m => (
-                      <option key={m.membre_id} value={m.membre_id}>
-                        {m.prenom} {m.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">
-                    Date début <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="date_debut"
-                    value={form.date_debut}
-                    onChange={handleChange}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">Date fin</label>
-                  <input
-                    type="date"
-                    name="date_fin"
-                    value={form.date_fin}
-                    onChange={handleChange}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  />
-                </div>
-              </div>
-
-              {/* Statut + Type données */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">Statut</label>
-                  <select
-                    name="statut"
-                    value={form.statut}
-                    onChange={handleChange}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  >
-                    <option value="en_attente">En attente</option>
-                    <option value="en_cours">En cours</option>
-                    <option value="terminé">Terminé</option>
-                    <option value="annulé">Annulé</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">Type de données</label>
-                  <input
-                    type="text"
-                    name="type_donnees"
-                    value={form.type_donnees}
-                    onChange={handleChange}
-                    placeholder="Ex: données CRM"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  />
-                </div>
-              </div>
-
-              {/* Montant facturé + Statut paiement */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">
-                    Montant facturé (FCFA)
-                  </label>
-                  <input
-                    type="number"
-                    name="montant_facture"
-                    value={form.montant_facture}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  />
-                </div>
-                <div>
-                <div>
-               <label className="text-xs text-gray-500 font-medium block mb-1">
-               Date de facturation
-             </label>
-            <input
-          type="date"
-          name="date_facturation"
-          value={form.date_facturation}
-          onChange={handleChange}
-           className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-         />
-
-         
-              </div>
-                  <label className="text-xs text-gray-500 font-medium block mb-1">Statut paiement</label>
-                  <select
-                    name="statut_paiement"
-                    value={form.statut_paiement}
-                    onChange={handleChange}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-400"
-                  >
-                    <option value="en_attente">En attente</option>
-                    <option value="payee">Payée</option>
-                    <option value="en_retard">En retard</option>
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
-
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+              <div><label style={labelStyle}>Date de facture</label><input type="date" name="date_facture" value={form.date_facture} onChange={handleChange} className={inputStyle} /></div>
+              <div><label style={labelStyle}>Date de paiement</label><input type="date" name="date_paiement" value={form.date_paiement} onChange={handleChange} className={inputStyle} /></div>
+            </div>
+            <div style={{ marginTop: '12px' }}><label style={labelStyle}>Notes</label><textarea name="notes_facturation" value={form.notes_facturation} onChange={handleChange} placeholder="Notes de facturation..." rows={2} className={inputStyle} style={{ resize: 'none' }} /></div>
+          </div>
         </div>
-
-        {/* Pied */}
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
-          <button
-            onClick={onFermer}
-            className="text-sm text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={envoi || chargementForm}
-            className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 px-6 py-2 rounded-lg transition-colors font-medium"
-          >
-            {envoi ? 'Enregistrement...' : projetExistant ? 'Modifier' : 'Créer le projet'}
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '20px 24px', borderTop: '1px solid var(--df-border)' }}>
+          <button onClick={onFermer} className="df-btn-secondary">Annuler</button>
+          <button onClick={handleSubmit} disabled={envoi} className="df-btn-primary">{envoi ? 'Enregistrement...' : projetExistant ? 'Enregistrer' : 'Créer le projet'}</button>
         </div>
-
       </div>
     </div>
   )

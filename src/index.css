@@ -1,1 +1,514 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+
+:root {
+  /* ─── Le papier peint et le sol ─── */
+  --df-bg-primary: #f8f9fc;
+  --df-bg-secondary: #ffffff;
+  --df-bg-tertiary: #f1f3f9;
+  --df-bg-sidebar: #ffffff;
+  --df-bg-card: #ffffff;
+  --df-bg-elevated: #ffffff;
+  --df-bg-hover: #f1f3f9;
+  --df-bg-input: #f8f9fc;
+  --df-bg-overlay: rgba(15, 10, 42, 0.4);
+  --df-bg-modal: rgba(255, 255, 255, 0.95);
+
+  /* ─── Pour qu'on puisse lire quelque chose ─── */
+  --df-text-primary: #0f172a;
+  --df-text-secondary: #475569;
+  --df-text-tertiary: #94a3b8;
+  --df-text-inverted: #ffffff;
+
+  /* ─── Les petites lignes qui séparent tout ─── */
+  --df-border: #e2e8f0;
+  --df-border-light: #f1f5f9;
+  --df-border-hover: #cbd5e1;
+  --df-border-focus: #818cf8;
+
+  /* ─── Notre touche de style (qui claque) ─── */
+  --df-accent: #6366f1;
+  --df-accent-hover: #4f46e5;
+  --df-accent-soft: #eef2ff;
+  --df-accent-muted: #c7d2fe;
+  --df-accent-glow: rgba(99, 102, 241, 0.15);
+  --df-accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+
+  /* ─── Vert c'est bien, Rouge c'est pas bien ─── */
+  --df-success: #10b981;
+  --df-success-soft: #ecfdf5;
+  --df-warning: #f59e0b;
+  --df-warning-soft: #fffbeb;
+  --df-danger: #ef4444;
+  --df-danger-soft: #fef2f2;
+
+  /* ─── Les ombres (pour faire genre c'est en 3D) ─── */
+  --df-shadow-sm: 0 1px 3px rgba(15, 10, 42, 0.04), 0 1px 2px rgba(15, 10, 42, 0.03);
+  --df-shadow-md: 0 4px 16px rgba(15, 10, 42, 0.06), 0 2px 4px rgba(15, 10, 42, 0.04);
+  --df-shadow-lg: 0 12px 40px rgba(15, 10, 42, 0.08), 0 4px 12px rgba(15, 10, 42, 0.04);
+  --df-shadow-xl: 0 20px 60px rgba(15, 10, 42, 0.12), 0 8px 20px rgba(15, 10, 42, 0.06);
+  --df-shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+
+  /* ─── Les dimensions de la barre magique sur le côté ─── */
+  --df-sidebar-width: 260px;
+  --df-sidebar-text: #475569;
+  --df-sidebar-text-active: #6366f1;
+  --df-sidebar-border: #f1f5f9;
+}
+
+/* 
+   MODE SOMBRE (parce que le fond blanc, ça fait mal aux yeux)
+    */
+.dark {
+  --df-bg-primary: #0a0e1a;
+  --df-bg-secondary: #111827;
+  --df-bg-tertiary: #1a1f33;
+  --df-bg-sidebar: #0d1121;
+  --df-bg-card: #141929;
+  --df-bg-elevated: #1a2035;
+  --df-bg-hover: #1e2540;
+  --df-bg-input: #141929;
+  --df-bg-overlay: rgba(0, 0, 0, 0.6);
+  --df-bg-modal: rgba(20, 25, 41, 0.95);
+
+  --df-text-primary: #f1f5f9;
+  --df-text-secondary: #94a3b8;
+  --df-text-tertiary: #64748b;
+  --df-text-inverted: #0f172a;
+
+  --df-border: #1e293b;
+  --df-border-light: #1a2035;
+  --df-border-hover: #334155;
+  --df-border-focus: #818cf8;
+
+  --df-accent: #818cf8;
+  --df-accent-hover: #6366f1;
+  --df-accent-soft: rgba(99, 102, 241, 0.12);
+  --df-accent-muted: rgba(99, 102, 241, 0.25);
+  --df-accent-glow: rgba(129, 140, 248, 0.2);
+  --df-accent-gradient: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
+
+  --df-success: #34d399;
+  --df-success-soft: rgba(16, 185, 129, 0.12);
+  --df-warning: #fbbf24;
+  --df-warning-soft: rgba(245, 158, 11, 0.12);
+  --df-danger: #f87171;
+  --df-danger-soft: rgba(239, 68, 68, 0.12);
+
+  --df-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --df-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --df-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --df-shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.25);
+  --df-shadow-glow: 0 0 30px rgba(129, 140, 248, 0.2);
+
+  --df-sidebar-text: #94a3b8;
+  --df-sidebar-text-active: #818cf8;
+  --df-sidebar-border: #1e293b;
+}
+
+/* 
+   LA BASE DE TOUT (les fondations de la maison)
+    */
+body {
+  background: var(--df-bg-primary);
+  color: var(--df-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── L'ascenseur sur le côté de l'écran ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--df-accent-muted);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--df-accent);
+}
+
+/* ─── Quand on surligne du texte avec la souris (ça fait propre) ─── */
+::selection {
+  background: var(--df-accent-muted);
+  color: var(--df-text-primary);
+}
+
+/* 
+   LES TRUCS QUI BOUGENT TOUT SEULS (les animations)
+    */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--df-accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 12px 4px var(--df-accent-glow);
+  }
+}
+
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.animate-slideRight {
+  animation: slideRight 0.35s ease-out both;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.4s ease-out both;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.25s ease-out both;
+}
+
+.animate-overlayIn {
+  animation: overlayIn 0.2s ease-out both;
+}
+
+/* Les animations en cascade (comme des dominos qui tombent avec classe) */
+.stagger-children>* {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.stagger-children>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.stagger-children>*:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.stagger-children>*:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.stagger-children>*:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.stagger-children>*:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+.stagger-children>*:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+.stagger-children>*:nth-child(7) {
+  animation-delay: 300ms;
+}
+
+.stagger-children>*:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+.stagger-children>*:nth-child(9) {
+  animation-delay: 400ms;
+}
+
+/* 
+   LA BOÎTE À OUTILS MAGIQUE (classes CSS prêtes à l'emploi)
+    */
+
+/* Effet vitre sablée (c'est très tendance) */
+.df-glass {
+  background: var(--df-bg-modal);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--df-border);
+}
+
+/* La petite carte normale (pour ranger des trucs dedans) */
+.df-card {
+  background: var(--df-bg-card);
+  border: 1px solid var(--df-border);
+  border-radius: 16px;
+  box-shadow: var(--df-shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.df-card:hover {
+  box-shadow: var(--df-shadow-md);
+  border-color: var(--df-border-hover);
+}
+
+.df-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--df-shadow-lg);
+}
+
+/* Les champs où on tape au clavier */
+.df-input {
+  background: var(--df-bg-input);
+  border: 1px solid var(--df-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--df-text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  outline: none;
+}
+
+.df-input::placeholder {
+  color: var(--df-text-tertiary);
+}
+
+.df-input:focus {
+  border-color: var(--df-border-focus);
+  box-shadow: 0 0 0 3px var(--df-accent-glow);
+}
+
+/* Le gros bouton sur lequel on veut toujours cliquer */
+.df-btn-primary {
+  background: var(--df-accent-gradient);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.df-btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+
+.df-btn-primary:active {
+  transform: translateY(0);
+}
+
+.df-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Le bouton un peu moins important (le pauvre) */
+.df-btn-secondary {
+  background: var(--df-bg-tertiary);
+  color: var(--df-text-secondary);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--df-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.df-btn-secondary:hover {
+  background: var(--df-bg-hover);
+  border-color: var(--df-border-hover);
+  color: var(--df-text-primary);
+}
+
+/* Les petites étiquettes mignonnes */
+.df-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.4;
+}
+
+/* Le voile mystérieux qui cache tout le reste */
+.df-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--df-bg-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 40;
+  animation: overlayIn 0.2s ease-out;
+}
+
+/* Modal */
+.df-modal {
+  background: var(--df-bg-modal);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--df-border);
+  border-radius: 20px;
+  box-shadow: var(--df-shadow-xl);
+  animation: scaleIn 0.25s ease-out;
+}
+
+/* Skeleton shimmer */
+.df-skeleton {
+  background: linear-gradient(90deg,
+      var(--df-bg-tertiary) 25%,
+      var(--df-bg-hover) 50%,
+      var(--df-bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Sidebar nav link */
+.df-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--df-sidebar-text);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.df-nav-link:hover {
+  background: var(--df-bg-hover);
+  color: var(--df-text-primary);
+}
+
+.df-nav-link.active {
+  background: var(--df-accent-soft);
+  color: var(--df-sidebar-text-active);
+  font-weight: 600;
+}
+
+.df-nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--df-accent-gradient);
+}
+
+/* Section title */
+.df-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--df-text-tertiary);
+  padding: 0 16px;
+  margin-bottom: 8px;
+}
+
+/* Theme toggle */
+.df-theme-toggle {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--df-bg-tertiary);
+  border: 1px solid var(--df-border);
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.df-theme-toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--df-accent-gradient);
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.dark .df-theme-toggle::after {
+  transform: translateX(22px);
+}
