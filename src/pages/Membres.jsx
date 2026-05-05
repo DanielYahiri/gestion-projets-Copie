@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import Chargement from '../components/Chargement'
 import FormulaireMembre from '../components/FormulaireMembre'
+import { useMembreActif } from '../context/MembreContext'
 
 function BadgeRole({ role }) {
-  const labels = { data_scientist: 'Data Scientist', data_scientist_junior: 'Data Scientist Jr', data_analyst: 'Data Analyst', data_engineer: 'Data Engineer', ml_engineer: 'ML Engineer', chef_de_projet: 'Chef de projet', stagiaire: 'Stagiaire', collaborateur: 'Collaborateur' }
+  const labels = { data_scientist: 'Data Scientist', data_scientist_junior: 'Data Scientist Jr', data_analyst: 'Data Analyst', data_engineer: 'Data Engineer', ml_engineer: 'ML Engineer', chef_de_projet: 'Chef de projet', stagiaire: 'Stagiaire', collaborateur: 'Collaborateur', admin: 'Admin' }
   return <span className="df-badge" style={{ background: 'var(--df-accent-soft)', color: 'var(--df-accent)' }}>{labels[role] || role}</span>
 }
 
@@ -14,6 +15,8 @@ function Membres() {
   const [chargement, setChargement] = useState(true)
   const navigate = useNavigate()
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
+  const { membreActif } = useMembreActif()
+  const estAdmin = membreActif?.role === 'admin'
 
   async function chargerMembres() {
     const { data, error } = await supabase.from('vue_charge_membre').select('*').order('nom', { ascending: true })
@@ -30,7 +33,9 @@ function Membres() {
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>Membres</h1>
           <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{membres.length} membre(s)</p>
         </div>
-        <button onClick={() => setFormulaireOuvert(true)} className="df-btn-primary">+ Nouveau membre</button>
+        {estAdmin && (
+          <button onClick={() => setFormulaireOuvert(true)} className="df-btn-primary">+ Nouveau membre</button>
+        )}
       </div>
 
       {chargement && <Chargement nombre={4} />}

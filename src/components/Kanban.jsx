@@ -19,7 +19,7 @@ function BadgePriorite({ priorite }) {
 }
 
 function CarteTache({ tache, onClick, membreActif }) {
-  const estCollaborateur = membreActif?.role === 'collaborateur'
+  const estAdmin = membreActif?.role === 'admin'
   const membres = Array.isArray(tache.membres_affectes) ? tache.membres_affectes : (() => { try { return JSON.parse(tache.membres_affectes || '[]') } catch { return [] } })()
 
   return (
@@ -47,7 +47,7 @@ function CarteTache({ tache, onClick, membreActif }) {
       )}
 
       <div style={{ marginTop: '8px', display: 'flex', gap: '12px' }}>
-        {tache.total_heures > 0 && !estCollaborateur && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{tache.total_heures}h loggées</span>}
+        {tache.total_heures > 0 && estAdmin && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{tache.total_heures}h loggées</span>}
         {tache.nb_commentaires > 0 && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)' }}>{tache.nb_commentaires} commentaire(s)</span>}
       </div>
     </div>
@@ -55,6 +55,9 @@ function CarteTache({ tache, onClick, membreActif }) {
 }
 
 function Colonne({ titre, couleur, taches, onSelectTache, onNouveauTache, membreActif }) {
+  const [limite, setLimite] = useState(4)
+  const tachesVisibles = taches.slice(0, limite)
+
   return (
     <div className="df-kanban-col">
       <div className="df-kanban-header">
@@ -64,11 +67,18 @@ function Colonne({ titre, couleur, taches, onSelectTache, onNouveauTache, membre
       </div>
       <div style={{ minHeight: '60px' }}>
         {taches.length === 0 && <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)', textAlign: 'center', padding: '20px 0' }}>Aucune tâche</p>}
-        {taches.map(tache => (
+        {tachesVisibles.map(tache => (
           <CarteTache key={tache.tache_id} tache={tache} membreActif={membreActif} onClick={() => onSelectTache(tache.tache_id)} />
         ))}
-        <button
-          onClick={onNouveauTache}
+        {taches.length > limite && (
+          <button
+            onClick={() => setLimite(l => l + 4)}
+            style={{ width: '100%', marginTop: '4px', fontSize: '12px', color: 'var(--df-accent)', padding: '6px', borderRadius: '8px', border: 'none', background: 'var(--df-accent-soft)', cursor: 'pointer' }}
+          >
+            Voir plus ({taches.length - limite} restantes)
+          </button>
+        )}
+        <button onClick={onNouveauTache}
           style={{ width: '100%', marginTop: '8px', fontSize: '12px', color: 'var(--df-text-tertiary)', padding: '8px', borderRadius: '8px', border: '1px dashed var(--df-border)', background: 'transparent', cursor: 'pointer', transition: 'all 0.15s ease' }}
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--df-accent)'; e.currentTarget.style.borderColor = 'var(--df-accent)'; e.currentTarget.style.background = 'var(--df-accent-soft)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--df-text-tertiary)'; e.currentTarget.style.borderColor = 'var(--df-border)'; e.currentTarget.style.background = 'transparent' }}
@@ -81,6 +91,7 @@ function Colonne({ titre, couleur, taches, onSelectTache, onNouveauTache, membre
 }
 
 function Kanban({ projetId, membreActif }) {
+  const estAdmin = membreActif?.role === 'admin'
   const [taches, setTaches] = useState([])
   const [tacheSelectionnee, setTacheSelectionnee] = useState(null)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
@@ -113,7 +124,9 @@ function Kanban({ projetId, membreActif }) {
             couleur={col.couleur}
             taches={parStatut(col.statut)}
             onSelectTache={setTacheSelectionnee}
-            onNouveauTache={() => setFormulaireOuvert(true)}
+            onNouveauTache={() => {
+  if (estAdmin || estAssigneAuProjet) setFormulaireOuvert(true)
+}}
             membreActif={membreActif}
           />
         ))}

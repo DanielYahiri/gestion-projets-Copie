@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import FormulaireLivrable from './FormulaireLivrable'
 
-function Livrables({ projetId }) {
+function Livrables({ projetId, estAdmin }) {
   const [livrables, setLivrables] = useState([])
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
   const [livrableModif, setLivrableModif] = useState(null)
@@ -23,14 +23,16 @@ function Livrables({ projetId }) {
   return (
     <div className="animate-fadeIn">
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-        <button onClick={() => { setLivrableModif(null); setFormulaireOuvert(true) }} className="df-btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>+ Nouveau livrable</button>
+        {estAdmin && (
+          <button onClick={() => { setLivrableModif(null); setFormulaireOuvert(true) }} className="df-btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>+ Nouveau livrable</button>
+        )}
       </div>
 
       {livrables.length === 0 && <p className="df-empty">Aucun livrable défini.</p>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
         {livrables.map(l => (
-          <div key={l.livrable_id} className="df-card df-card-interactive" style={{ padding: '20px', cursor: 'pointer' }} onClick={() => { setLivrableModif(l); setFormulaireOuvert(true) }}>
+          <div key={l.livrable_id} className="df-card" style={{ padding: '20px', cursor: estAdmin ? 'pointer' : 'default' }} onClick={() => { if (estAdmin) { setLivrableModif(l); setFormulaireOuvert(true) } }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--df-text-primary)', flex: 1, marginRight: '8px' }}>{l.livrable_nom}</h3>
               {badgeType(l.type)}
@@ -47,9 +49,9 @@ function Livrables({ projetId }) {
         ))}
       </div>
 
-      {formulaireOuvert && (
-        <FormulaireLivrable projetId={projetId} livrableExistant={livrableModif} onFermer={() => setFormulaireOuvert(false)} onSuccess={chargerLivrables} />
-      )}
+      {formulaireOuvert && estAdmin && (
+  <FormulaireLivrable projetId={projetId} livrableExistant={livrableModif} onFermer={() => setFormulaireOuvert(false)} onSuccess={chargerLivrables} />
+)}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import Chargement from '../components/Chargement'
 import FormulaireMembre from '../components/FormulaireMembre'
+import { useMembreActif } from '../context/MembreContext'
 
 function BadgeRole({ role }) {
   const labels = { data_scientist: 'Data Scientist', data_scientist_junior: 'Data Scientist Jr', data_analyst: 'Data Analyst', data_engineer: 'Data Engineer', ml_engineer: 'ML Engineer', chef_de_projet: 'Chef de projet', stagiaire: 'Stagiaire', collaborateur: 'Collaborateur' }
@@ -28,6 +29,8 @@ function MembreDetail() {
   const [charge, setCharge] = useState([])
   const [chargement, setChargement] = useState(true)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
+  const { membreActif } = useMembreActif()
+  const estAdmin = membreActif?.role === 'admin'
 
   async function chargerDonnees() {
     const { data: dataMembre, error: errMembre } = await supabase.from('vue_charge_membre').select('*').eq('membre_id', id).single()
@@ -65,7 +68,9 @@ function MembreDetail() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
               <BadgeRole role={membre.role} />
               <span style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>depuis {membre.date_entree}</span>
-              <button onClick={() => setFormulaireOuvert(true)} className="df-btn-secondary" style={{ fontSize: '12px', padding: '6px 12px', marginLeft: 'auto' }}>Modifier</button>
+              {estAdmin && (
+                <button onClick={() => setFormulaireOuvert(true)} className="df-btn-secondary" style={{ fontSize: '12px', padding: '6px 12px', marginLeft: 'auto' }}>Modifier</button>
+              )}
             </div>
           </div>
           {membre.nb_taches_en_retard > 0 && (

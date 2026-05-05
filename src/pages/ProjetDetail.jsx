@@ -28,7 +28,8 @@ function ProjetDetail() {
   const [ongletActif, setOngletActif] = useState('taches')
   const [afficherFormulaire, setAfficherFormulaire] = useState(false)
   const { membreActif } = useMembreActif()
-  const estCollaborateur = membreActif?.role === 'collaborateur'
+  const estAdmin = membreActif?.role === 'admin'
+  const estCollaborateur = !estAdmin
 
   async function chargerProjet() {
     setChargement(true)
@@ -40,11 +41,11 @@ function ProjetDetail() {
   useEffect(() => { chargerProjet() }, [id])
 
   const onglets = [
-    { key: 'taches', label: 'Tâches' },
-    { key: 'phases', label: 'Phases' },
-    { key: 'livrables', label: 'Livrables' },
-    ...(!estCollaborateur ? [{ key: 'financier', label: 'Financier' }] : []),
-  ]
+  { key: 'taches', label: 'Tâches' },
+  { key: 'phases', label: 'Phases' },
+  { key: 'livrables', label: 'Livrables' },
+  ...(estAdmin ? [{ key: 'financier', label: 'Financier' }] : []),
+]
 
   if (chargement) return <div className="animate-fadeIn" style={{ padding: '32px' }}><Chargement nombre={3} /></div>
   if (!projet) return (
@@ -67,9 +68,9 @@ function ProjetDetail() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             <BadgeStatut statut={projet.statut} />
-            {!estCollaborateur && (
-              <button onClick={() => setAfficherFormulaire(true)} className="df-btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>Modifier</button>
-            )}
+            {estAdmin && (
+             <button onClick={() => setAfficherFormulaire(true)} className="df-btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>Modifier</button>
+              )}
           </div>
         </div>
 
@@ -104,9 +105,9 @@ function ProjetDetail() {
       {/* Tab content */}
       <div className="animate-fadeIn" key={ongletActif}>
         {ongletActif === 'taches' && <Kanban projetId={id} membreActif={membreActif} estCollaborateur={estCollaborateur} />}
-        {ongletActif === 'phases' && <Phases projetId={id} />}
-        {ongletActif === 'livrables' && <Livrables projetId={id} />}
-        {ongletActif === 'financier' && !estCollaborateur && <Financier projetId={id} />}
+        {ongletActif === 'phases' && <Phases projetId={id} membreActif={membreActif} estAdmin={estAdmin} />}
+        {ongletActif === 'livrables' && <Livrables projetId={id} estAdmin={estAdmin} />}
+        {ongletActif === 'financier' && estAdmin && <Financier projetId={id} />}
       </div>
 
       {afficherFormulaire && (

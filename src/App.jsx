@@ -16,7 +16,7 @@ import Enigme from './components/Enigme'
 import './App.css'
 
 /* ──────────── Le mail magique qui ouvre toutes les portes ──────────── */
-const EMAIL_SUPER_ADMIN = 'elmas.oulobo@daloamarket.shop'
+const EMAIL_SUPER_ADMIN = 'bohdaniel946@gmail.com'
 
 /* ──────────── Mes super icônes dessinées à la main (ou presque) ──────────── */
 function IconDashboard() {
@@ -139,7 +139,7 @@ function RouteProtegee({ children, adminSeulement = false }) {
 
   if (!membreActif) return <Navigate to="/connexion" replace />
 
-  if (adminSeulement && membreActif.role === 'collaborateur') {
+  if (adminSeulement && membreActif.role !== 'admin') {
     return <Navigate to="/projets" replace />
   }
 
@@ -147,7 +147,7 @@ function RouteProtegee({ children, adminSeulement = false }) {
 }
 
 /* ──────────── La fameuse barre latérale (qui aime bien jouer à cache-cache) ──────────── */
-function Sidebar({ membreActif, estCollaborateur, deconnexion, collapsed, setCollapsed }) {
+function Sidebar({ membreActif, estAdmin, deconnexion, collapsed, setCollapsed }) {
   const { theme, toggleTheme } = useTheme()
 
   return (
@@ -186,11 +186,11 @@ function Sidebar({ membreActif, estCollaborateur, deconnexion, collapsed, setCol
         <nav style={{ flex: 1, padding: '0 12px' }}>
           <p className="df-section-title">Menu</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {!estCollaborateur && (
+            {estAdmin && (
               <NavItem to="/" icon={<IconDashboard />} label="Dashboard" onClick={() => setCollapsed(true)} />
             )}
             <NavItem to="/projets" icon={<IconProjets />} label="Projets" onClick={() => setCollapsed(true)} />
-            {!estCollaborateur && (
+            {estAdmin && (
               <>
                 <NavItem to="/clients" icon={<IconClients />} label="Clients" onClick={() => setCollapsed(true)} />
                 <NavItem to="/membres" icon={<IconMembres />} label="Membres" onClick={() => setCollapsed(true)} />
@@ -294,9 +294,9 @@ function TopBar({ collapsed, setCollapsed, membreActif }) {
 /* ──────────── Le grand chef d'orchestre de l'application ──────────── */
 function App() {
   const { membreActif, chargementAuth, deconnexion } = useMembreActif()
-  /* Si l'email est le mail VIP, on force les droits admin (parce qu'on le vaut bien) */
-  const estSuperAdmin = membreActif?.email === EMAIL_SUPER_ADMIN
-  const estCollaborateur = estSuperAdmin ? false : membreActif?.role === 'collaborateur'
+  /* on donne l'acces juste qu'au membre admin */
+  const estAdmin = membreActif?.role === 'admin'
+  const estCollaborateur = !estAdmin
   const [collapsed, setCollapsed] = useState(false)
 
   /* ──── Le piège à énigmes (héhé, t'y échapperas pas) ──── */
@@ -339,7 +339,7 @@ function App() {
         <div className="df-layout">
           <Sidebar
             membreActif={membreActif}
-            estCollaborateur={estCollaborateur}
+            estAdmin={estAdmin}
             deconnexion={deconnexion}
             collapsed={collapsed}
             setCollapsed={setCollapsed}

@@ -87,7 +87,8 @@ function FormulaireTempsPassé({ tacheId, entree = null, onFermer, onSuccess }) 
 
 function PanneauTache({ tacheId, onFermer }) {
   const { membreActif } = useMembreActif()
-  const estCollaborateur = membreActif?.role === 'collaborateur'
+  const estAdmin = membreActif?.role === 'admin'
+  const estCollaborateur = !estAdmin
   const [tache, setTache] = useState(null)
   const [tempsEntrees, setTempsEntrees] = useState([])
   const [chargement, setChargement] = useState(true)
@@ -105,7 +106,7 @@ function PanneauTache({ tacheId, onFermer }) {
       const { data, error } = await supabase.from('vue_taches_membres').select('*').eq('tache_id', tacheId).single()
       if (error) { setChargement(false); return }
       setTache(data)
-      if (!estCollaborateur) { const { data: dataTemps } = await supabase.from('temps_passe').select('*, membre:membre_id(nom, prenom)').eq('tache_id', tacheId).order('date', { ascending: false }); setTempsEntrees(dataTemps || []) }
+      if (estAdmin) { const { data: dataTemps } = await supabase.from('temps_passe').select('*, membre:membre_id(nom, prenom)').eq('tache_id', tacheId).order('date', { ascending: false }); setTempsEntrees(dataTemps || []) }
       setChargement(false)
     }
     chargerTache()
@@ -114,16 +115,16 @@ function PanneauTache({ tacheId, onFermer }) {
   async function rechargerTache() {
     const { data } = await supabase.from('vue_taches_membres').select('*').eq('tache_id', tacheId).single()
     if (data) setTache(data)
-    if (!estCollaborateur) { const { data: dataTemps } = await supabase.from('temps_passe').select('*, membre:membre_id(nom, prenom)').eq('tache_id', tacheId).order('date', { ascending: false }); setTempsEntrees(dataTemps || []) }
+    if (estAdmin) { const { data: dataTemps } = await supabase.from('temps_passe').select('*, membre:membre_id(nom, prenom)').eq('tache_id', tacheId).order('date', { ascending: false }); setTempsEntrees(dataTemps || []) }
   }
 
   const membres = tache ? (Array.isArray(tache.membres_affectes) ? tache.membres_affectes : (() => { try { return JSON.parse(tache.membres_affectes || '[]') } catch { return [] } })()) : []
   const commentaires = tache ? (Array.isArray(tache.commentaires_rattaches) ? tache.commentaires_rattaches : (() => { try { return JSON.parse(tache.commentaires_rattaches || '[]') } catch { return [] } })()) : []
   const estAffecte = membres.some(m => m.membre_id === membreActif?.membre_id)
-  const peutModifier = !estCollaborateur || estAffecte
+  const peutModifier = estAdmin || estAffecte
 
   async function changerStatut(nouveauStatut) {
-    if (majStatut || (!estAffecte && estCollaborateur)) return
+  if (majStatut || (!estAffecte && !estAdmin)) return
     setMajStatut(true)
     const { error } = await supabase.from('tache').update({ statut: nouveauStatut }).eq('tache_id', tacheId)
     if (error) { setMajStatut(false); return }
@@ -157,7 +158,7 @@ function PanneauTache({ tacheId, onFermer }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {(estAffecte || !estCollaborateur) ? (
+                {(estAffecte || estAdmin) ? (
                   <><DropdownStatut statut={tache.statut} onChange={changerStatut} />{majStatut && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', fontStyle: 'italic' }}>Mise à jour...</span>}</>
                 ) : <BadgeStatut statut={tache.statut} />}
                 <BadgePriorite priorite={tache.priorite} />
@@ -202,7 +203,7 @@ function PanneauTache({ tacheId, onFermer }) {
               </div>
 
               {/* Hours */}
-              {!estCollaborateur && (
+              {estAdmin && (
                 <div style={{ background: 'var(--df-bg-tertiary)', borderRadius: '14px', padding: '18px', border: '1px solid var(--df-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Heures loggées</p>
@@ -266,7 +267,7 @@ function PanneauTache({ tacheId, onFermer }) {
         )}
 
         {formulaireModif && peutModifier && <FormulaireTache tache={tache} projetId={tache.projet_id} onFermer={() => setFormulaireModif(false)} onSuccess={rechargerTache} />}
-        {formulaireTemps && !estCollaborateur && <FormulaireTempsPassé tacheId={tacheId} entree={entreeModif} onFermer={() => { setFormulaireTemps(false); setEntreeModif(null) }} onSuccess={rechargerTache} />}
+        {formulaireTemps && estAdmin && <FormulaireTempsPassé tacheId={tacheId} entree={entreeModif} onFermer={() => { setFormulaireTemps(false); setEntreeModif(null) }} onSuccess={rechargerTache} />}
       </div>
     </div>
   )

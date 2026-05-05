@@ -23,12 +23,12 @@ function Projets() {
   const [afficherFormulaire, setAfficherFormulaire] = useState(false)
   const navigate = useNavigate()
   const { membreActif } = useMembreActif()
-  const estCollaborateur = membreActif?.role === 'collaborateur'
+  const estAdmin = membreActif?.role === 'admin'
 
-  async function chargerDonnees() {
-    setChargement(true)
-    let query = supabase.from('vue_projet_complet').select('*')
-    if (estCollaborateur) query = query.eq('membre_id', membreActif.membre_id)
+async function chargerDonnees() {
+  setChargement(true)
+  let query = supabase.from('vue_projet_complet').select('*')
+  if (!estAdmin) query = query.eq('membre_id', membreActif.membre_id)
     const { data: dataProjets, error } = await query
     if (error) { console.log('Erreur :', error); setChargement(false); return }
     setProjets(dataProjets)
@@ -51,7 +51,7 @@ function Projets() {
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>Projets</h1>
           <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{projets.length} projet(s) au total</p>
         </div>
-        {!estCollaborateur && (
+        {estAdmin && (
           <button onClick={() => setAfficherFormulaire(true)} className="df-btn-primary">+ Nouveau projet</button>
         )}
       </div>
