@@ -87,6 +87,7 @@ function FormulaireTempsPassé({ tacheId, entree = null, onFermer, onSuccess }) 
 
 function PanneauTache({ tacheId, onFermer }) {
   const { membreActif } = useMembreActif()
+  const estSuperAdmin = membreActif?.email === 'bohdaniel946@gmail.com'
   const estAdmin = membreActif?.role === 'admin'
   const estCollaborateur = !estAdmin
   const [tache, setTache] = useState(null)
@@ -121,10 +122,10 @@ function PanneauTache({ tacheId, onFermer }) {
   const membres = tache ? (Array.isArray(tache.membres_affectes) ? tache.membres_affectes : (() => { try { return JSON.parse(tache.membres_affectes || '[]') } catch { return [] } })()) : []
   const commentaires = tache ? (Array.isArray(tache.commentaires_rattaches) ? tache.commentaires_rattaches : (() => { try { return JSON.parse(tache.commentaires_rattaches || '[]') } catch { return [] } })()) : []
   const estAffecte = membres.some(m => m.membre_id === membreActif?.membre_id)
-  const peutModifier = estAdmin || estAffecte
+  const peutModifier = estSuperAdmin || estAffecte
 
   async function changerStatut(nouveauStatut) {
-  if (majStatut || (!estAffecte && !estAdmin)) return
+  if (majStatut || (!estAffecte && !estSuperAdmin)) return
     setMajStatut(true)
     const { error } = await supabase.from('tache').update({ statut: nouveauStatut }).eq('tache_id', tacheId)
     if (error) { setMajStatut(false); return }
@@ -158,7 +159,7 @@ function PanneauTache({ tacheId, onFermer }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {(estAffecte || estAdmin) ? (
+                {(estAffecte || estSuperAdmin) ? (
                   <><DropdownStatut statut={tache.statut} onChange={changerStatut} />{majStatut && <span style={{ fontSize: '11px', color: 'var(--df-text-tertiary)', fontStyle: 'italic' }}>Mise à jour...</span>}</>
                 ) : <BadgeStatut statut={tache.statut} />}
                 <BadgePriorite priorite={tache.priorite} />
@@ -203,7 +204,7 @@ function PanneauTache({ tacheId, onFermer }) {
               </div>
 
               {/* Hours */}
-              {estAdmin && (
+              {estSuperAdmin && (
                 <div style={{ background: 'var(--df-bg-tertiary)', borderRadius: '14px', padding: '18px', border: '1px solid var(--df-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--df-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Heures loggées</p>

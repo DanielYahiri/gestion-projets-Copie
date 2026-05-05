@@ -16,7 +16,7 @@ function Membres() {
   const navigate = useNavigate()
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
   const { membreActif } = useMembreActif()
-  const estAdmin = membreActif?.role === 'admin'
+  const estSuperAdmin = membreActif?.email === 'bohdaniel946@gmail.com'
 
   async function chargerMembres() {
     const { data, error } = await supabase.from('vue_charge_membre').select('*').order('nom', { ascending: true })
@@ -33,7 +33,7 @@ function Membres() {
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--df-text-primary)', letterSpacing: '-0.02em' }}>Membres</h1>
           <p style={{ fontSize: '13px', color: 'var(--df-text-tertiary)', marginTop: '4px' }}>{membres.length} membre(s)</p>
         </div>
-        {estAdmin && (
+        {estSuperAdmin && (
           <button onClick={() => setFormulaireOuvert(true)} className="df-btn-primary">+ Nouveau membre</button>
         )}
       </div>

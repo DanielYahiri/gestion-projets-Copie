@@ -38,8 +38,8 @@ function FormulaireTache({ tache = null, projetId, onFermer, onSuccess }) {
     let tacheId = tache?.tache_id
     if (tache) { const { error } = await supabase.from('tache').update(payload).eq('tache_id', tacheId); if (error) { setErreur('Erreur.'); setEnvoi(false); return } }
     else { const { data, error } = await supabase.from('tache').insert(payload).select('tache_id').single(); if (error) { setErreur('Erreur.'); setEnvoi(false); return }; tacheId = data.tache_id }
-    await supabase.from('affectation_membre').delete().eq('tache_id', tacheId)
-    if (membresAffectes.length > 0) { await supabase.from('affectation_membre').insert(membresAffectes.map(mid => ({ tache_id: tacheId, membre_id: mid }))) }
+    await supabase.from('affectation').delete().eq('tache_id', tacheId)
+    if (membresAffectes.length > 0) { await supabase.from('affectation').insert(membresAffectes.map(mid => ({ tache_id: tacheId, membre_id: mid }))) }
     setEnvoi(false); onSuccess(); onFermer()
   }
 

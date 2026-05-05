@@ -30,7 +30,7 @@ function MembreDetail() {
   const [chargement, setChargement] = useState(true)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
   const { membreActif } = useMembreActif()
-  const estAdmin = membreActif?.role === 'admin'
+  const estSuperAdmin = membreActif?.email === 'bohdaniel946@gmail.com'
 
   async function chargerDonnees() {
     const { data: dataMembre, error: errMembre } = await supabase.from('vue_charge_membre').select('*').eq('membre_id', id).single()
@@ -68,7 +68,7 @@ function MembreDetail() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
               <BadgeRole role={membre.role} />
               <span style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>depuis {membre.date_entree}</span>
-              {estAdmin && (
+              {estSuperAdmin && (
                 <button onClick={() => setFormulaireOuvert(true)} className="df-btn-secondary" style={{ fontSize: '12px', padding: '6px 12px', marginLeft: 'auto' }}>Modifier</button>
               )}
             </div>

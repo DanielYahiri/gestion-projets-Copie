@@ -90,11 +90,12 @@ function Colonne({ titre, couleur, taches, onSelectTache, onNouveauTache, membre
   )
 }
 
-function Kanban({ projetId, membreActif }) {
+function Kanban({ projetId, membreActif, filtrePhase, setFiltrePhase }) {
   const estAdmin = membreActif?.role === 'admin'
   const [taches, setTaches] = useState([])
   const [tacheSelectionnee, setTacheSelectionnee] = useState(null)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
+  const tachesFiltrees = filtrePhase ? taches.filter(t => t.phase_id === filtrePhase.phase_id) : taches
 
   async function chargerTaches() {
     const { data, error } = await supabase.from('vue_taches_membres').select('*').eq('projet_id', projetId)
@@ -104,7 +105,7 @@ function Kanban({ projetId, membreActif }) {
 
   useEffect(() => { chargerTaches() }, [projetId])
 
-  const parStatut = (statut) => taches.filter(t => t.statut === statut)
+  const parStatut = (statut) => tachesFiltrees.filter(t => t.statut === statut)
 
   const colonnes = [
     { titre: 'À faire', couleur: 'var(--df-text-tertiary)', statut: 'a_faire' },
@@ -115,7 +116,19 @@ function Kanban({ projetId, membreActif }) {
 
   return (
     <div>
-      {/* Use CSS Grid from .df-kanban-board — responsive breakpoints in CSS */}
+      {filtrePhase && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', padding: '10px 14px', background: 'var(--df-accent-soft)', borderRadius: '8px', border: '1px solid var(--df-accent)' }}>
+          <span style={{ fontSize: '13px', color: 'var(--df-accent)', fontWeight: 600 }}>
+            Filtre : {filtrePhase.nom}
+          </span>
+          <button
+            onClick={() => setFiltrePhase(null)}
+            style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--df-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+          >
+            ✕ Effacer le filtre
+          </button>
+        </div>
+      )}
       <div className="df-kanban-board">
         {colonnes.map(col => (
           <Colonne

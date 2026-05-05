@@ -25,12 +25,43 @@ function Projets() {
   const { membreActif } = useMembreActif()
   const estAdmin = membreActif?.role === 'admin'
 
-async function chargerDonnees() {
-  setChargement(true)
-  let query = supabase.from('vue_projet_complet').select('*')
-  if (!estAdmin) query = query.eq('membre_id', membreActif.membre_id)
-    const { data: dataProjets, error } = await query
-    if (error) { console.log('Erreur :', error); setChargement(false); return }
+  async function chargerDonnees() {
+    setChargement(true)
+    let dataProjets = []
+
+    if (estAdmin) {
+      const { data, error } = await supabase.from('vue_projet_complet').select('*')
+      if (error) { console.log('Erreur admin:', error); setChargement(false); return }
+      dataProjets = data || []
+    } else {
+      const { data: affectations, error: errAff } = await supabase
+        .from('affectation')
+        .select('tache_id, tache(projet_id)')
+        .eq('membre_id', membreActif.membre_id)
+
+      if (errAff) { console.log('Erreur affectations:', errAff); setChargement(false); return }
+
+      const projetIds = [...new Set(affectations.map(a => a.tache?.projet_id).filter(Boolean))]
+
+      if (projetIds.length === 0) { setProjets([]); setAvancements({}); setChargement(false); return }
+
+      const { data, error } = await supabase
+        .from('vue_projet_complet')
+        .select('*')
+        .in('projet_id', projetIds)
+
+      if (error) { console.log('Erreur projets:', error); setChargement(false); return }
+      dataProjets = data || []
+    }
+
+    // Dédupliquer par projet_id
+    const vus = new Set()
+    dataProjets = dataProjets.filter(p => {
+      if (vus.has(p.projet_id)) return false
+      vus.add(p.projet_id)
+      return true
+    })
+
     setProjets(dataProjets)
 
     const resultats = {}

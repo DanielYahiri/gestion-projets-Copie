@@ -26,6 +26,7 @@ function ProjetDetail() {
   const [projet, setProjet] = useState(null)
   const [chargement, setChargement] = useState(true)
   const [ongletActif, setOngletActif] = useState('taches')
+  const [filtrePhase, setFiltrePhase] = useState(null)
   const [afficherFormulaire, setAfficherFormulaire] = useState(false)
   const { membreActif } = useMembreActif()
   const estAdmin = membreActif?.role === 'admin'
@@ -104,8 +105,8 @@ function ProjetDetail() {
 
       {/* Tab content */}
       <div className="animate-fadeIn" key={ongletActif}>
-        {ongletActif === 'taches' && <Kanban projetId={id} membreActif={membreActif} estCollaborateur={estCollaborateur} />}
-        {ongletActif === 'phases' && <Phases projetId={id} membreActif={membreActif} estAdmin={estAdmin} />}
+        {ongletActif === 'taches' && <Kanban projetId={id} membreActif={membreActif} filtrePhase={filtrePhase} setFiltrePhase={setFiltrePhase} />}
+        {ongletActif === 'phases' && <Phases projetId={id} membreActif={membreActif} estAdmin={estAdmin} onVoirTachesPhase={(phase) => { setFiltrePhase(phase); setOngletActif('taches') }} />}
         {ongletActif === 'livrables' && <Livrables projetId={id} estAdmin={estAdmin} />}
         {ongletActif === 'financier' && estAdmin && <Financier projetId={id} />}
       </div>

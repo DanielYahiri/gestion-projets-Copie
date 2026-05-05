@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import FormulairePhase from './FormulairePhase'
 
-function Phases({ projetId, membreActif, estAdmin }) {
+function Phases({ projetId, membreActif, estAdmin, onVoirTachesPhase }) {
   const [phases, setPhases] = useState([])
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
   const [phaseModif, setPhaseModif] = useState(null)
@@ -97,7 +97,14 @@ function Phases({ projetId, membreActif, estAdmin }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className="df-badge" style={{ background: 'var(--df-bg-tertiary)', color: 'var(--df-text-tertiary)' }}>Phase {phase.ordre}</span>
                     
-                    {(estAdmin || tachesPhase.some(t => t.membres_affectes && JSON.parse(t.membres_affectes || '[]').some(m => m.membre_id === membreActif?.membre_id))) && (
+                    {(estAdmin || tachesPhase.some(t => {
+                    try {
+    const membres = Array.isArray(t.membres_affectes) 
+      ? t.membres_affectes 
+      : JSON.parse(t.membres_affectes || '[]')
+    return membres.some(m => m.membre_id === membreActif?.membre_id)
+  } catch { return false }
+})) && (
                       <button 
                         onClick={e => { e.stopPropagation(); setPhaseModif(phase); setFormulaireOuvert(true) }} 
                         className="df-btn-secondary" 
@@ -111,18 +118,37 @@ function Phases({ projetId, membreActif, estAdmin }) {
 
                 {/* Affichage des tâches de la phase sélectionnée */}
                 {phaseSelectionnee?.phase_id === phase.phase_id && (
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--df-border)' }}>
-                    {tachesPhase.length === 0 ? (
-                      <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>Aucune tâche dans cette phase.</p>
-                    ) : (
-                      tachesPhase.map((t) => (
-                        <div key={t.tache_id} style={{ fontSize: '13px', color: 'var(--df-text-primary)', padding: '6px 0', borderBottom: '1px solid var(--df-border)' }}>
-                          {t.titre}
-                        </div>
-                      ))
-                    )}
+  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--df-border)' }}>
+    {tachesPhase.length === 0 ? (
+      <p style={{ fontSize: '12px', color: 'var(--df-text-tertiary)' }}>Aucune tâche dans cette phase.</p>
+    ) : (
+      <>
+        {tachesPhase.map((t) => {
+          const membres = (() => { try { return JSON.parse(t.membres_affectes || '[]') } catch { return [] } })()
+          return (
+            <div key={t.tache_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--df-border)' }}>
+              <span style={{ fontSize: '13px', color: 'var(--df-text-primary)' }}>{t.titre}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {membres.map(m => (
+                  <div key={m.membre_id} title={`${m.prenom} ${m.nom}`} className="df-avatar df-avatar-sm" style={{ width: '24px', height: '24px', fontSize: '9px' }}>
+                    {m.prenom?.[0]}{m.nom?.[0]}
                   </div>
-                )}
+                ))}
+              </div>
+            </div>
+          )
+        })}
+        <button
+          onClick={() => onVoirTachesPhase(phase)}
+          className="df-btn-secondary"
+          style={{ marginTop: '10px', fontSize: '12px', padding: '6px 12px', width: '100%' }}
+        >
+          Voir les details →
+        </button>
+      </>
+    )}
+  </div>
+)}
 
               </div>
             </div>
