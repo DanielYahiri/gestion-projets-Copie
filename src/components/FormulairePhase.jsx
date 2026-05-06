@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 
-function FormulairePhase({ onFermer, onSuccess, phaseExistante, projetId }) {
+function FormulairePhase({ onFermer, onSuccess, phaseExistante, projetId, membreActif }) {
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
   const [form, setForm] = useState({ nom: phaseExistante?.nom || '', description: phaseExistante?.description || '', ordre: phaseExistante?.ordre || '' })
@@ -14,9 +14,42 @@ function FormulairePhase({ onFermer, onSuccess, phaseExistante, projetId }) {
     setErreur(''); setEnvoi(true)
     const payload = { nom: form.nom, description: form.description || null, ordre: Number(form.ordre), projet_id: projetId }
     let error
-    if (phaseExistante) { const res = await supabase.from('phase').update(payload).eq('phase_id', phaseExistante.phase_id); error = res.error }
-    else { const res = await supabase.from('phase').insert(payload); error = res.error }
+    if (phaseExistante) {
+      const res = await supabase.from('phase').update(payload).eq('phase_id', phaseExistante.phase_id)
+      error = res.error
+    } else {
+      const res = await supabase.from('phase').insert(payload)
+      error = res.error
+    }
     if (error) { setErreur('Une erreur est survenue.'); setEnvoi(false); return }
+
+    // Notifier les membres assignés au projet
+    try {
+      const { data: affectations } = await supabase
+        .from('affectation')
+        .select('tache(projet_id), membre_id')
+        .eq('tache.projet_id', projetId)
+
+      const membreIds = [...new Set(
+        (affectations || [])
+          .filter(a => a.membre_id !== membreActif?.membre_id)
+          .map(a => a.membre_id)
+      )]
+
+      if (membreIds.length > 0) {
+        await supabase.from('notification').insert(
+          membreIds.map(mid => ({
+            membre_id: mid,
+            type: 'phase',
+            contenu: phaseExistante
+              ? `${membreActif?.prenom} ${membreActif?.nom} a modifié la phase "${form.nom}"`
+              : `${membreActif?.prenom} ${membreActif?.nom} a ajouté une nouvelle phase "${form.nom}"`,
+            lien: `/projets/${projetId}`
+          }))
+        )
+      }
+    } catch (e) { console.log('Erreur notification phase:', e) }
+
     setEnvoi(false); onSuccess(); onFermer()
   }
 

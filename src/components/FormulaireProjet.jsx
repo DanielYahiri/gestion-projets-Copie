@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-function FormulaireProjet({ projetExistant = null, onFermer, onSuccess }) {
+function FormulaireProjet({ onFermer, onSuccess, projetExistant, membreActif }) {
   const [clients, setClients] = useState([])
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -47,6 +47,36 @@ function FormulaireProjet({ projetExistant = null, onFermer, onSuccess }) {
       if (!error && res.data) { await supabase.from('facturation').insert({ projet_id: res.data.projet_id, montant_facture_forfait: form.montant_facture_forfait || null, notes_facturation: form.notes_facturation || null, date_facture: form.date_facture || null, date_paiement: form.date_paiement || null, statut_paiement: form.statut_paiement }) }
     }
     if (error) { setErreur('Une erreur est survenue.'); setEnvoi(false); return }
+
+    // Notification si projet marqué terminé
+    if (projetExistant && form.statut === 'terminé' && projetExistant?.statut !== 'terminé') {
+      try {
+        const { data: affectations } = await supabase
+          .from('affectation')
+          .select('membre_id, tache(projet_id)')
+
+        const membreIds = [...new Set(
+          (affectations || [])
+            .filter(a => {
+              const projetId = Array.isArray(a.tache) ? a.tache[0]?.projet_id : a.tache?.projet_id
+              return projetId === projetExistant.projet_id && a.membre_id !== membreActif?.membre_id
+            })
+            .map(a => a.membre_id)
+        )]
+
+        if (membreIds.length > 0) {
+          await supabase.from('notification').insert(
+            membreIds.map(mid => ({
+              membre_id: mid,
+              type: 'tache',
+              contenu: `Le projet "${form.nom}" a été marqué comme terminé par ${membreActif?.prenom} ${membreActif?.nom}`,
+              lien: `/projets/${projetExistant.projet_id}`
+            }))
+          )
+        }
+      } catch (e) { console.log('Erreur notification projet terminé:', e) }
+    }
+
     setEnvoi(false); onSuccess(); onFermer()
   }
 

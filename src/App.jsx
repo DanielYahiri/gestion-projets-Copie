@@ -13,6 +13,9 @@ import PageConnexion from './pages/PageConnexion'
 import PageNouveauMotDePasse from './pages/PageNouveauMotDePasse'
 import Chargement from './components/Chargement'
 import Enigme from './components/Enigme'
+import Notifications from './components/Notifications'
+import Messagerie from './pages/Messagerie'
+import { supabase } from './supabase'
 import './App.css'
 
 /* ──────────── Le mail magique qui ouvre toutes les portes ──────────── */
@@ -26,6 +29,14 @@ function IconDashboard() {
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  )
+}
+
+function IconMessagerie() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   )
 }
@@ -147,7 +158,7 @@ function RouteProtegee({ children, adminSeulement = false }) {
 }
 
 /* ──────────── La fameuse barre latérale (qui aime bien jouer à cache-cache) ──────────── */
-function Sidebar({ membreActif, estAdmin, deconnexion, collapsed, setCollapsed }) {
+function Sidebar({ membreActif, estAdmin, deconnexion, collapsed, setCollapsed, messagesNonLus, reinitialiserMessagesNonLus }) {
   const { theme, toggleTheme } = useTheme()
 
   return (
@@ -196,6 +207,21 @@ function Sidebar({ membreActif, estAdmin, deconnexion, collapsed, setCollapsed }
                 <NavItem to="/membres" icon={<IconMembres />} label="Membres" onClick={() => setCollapsed(true)} />
               </>
             )}
+            <div style={{ position: 'relative' }}>
+              <NavItem to="/messagerie" icon={<IconMessagerie />} label="Messages" onClick={() => { setCollapsed(true); reinitialiserMessagesNonLus() }} />
+              {messagesNonLus > 0 && (
+                <span style={{
+                  position: 'absolute', top: '8px', right: '12px',
+                  background: 'var(--df-danger)', color: '#fff',
+                  fontSize: '10px', fontWeight: 700,
+                  minWidth: '18px', height: '18px', borderRadius: '9px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px', pointerEvents: 'none'
+                }}>
+                  {messagesNonLus > 9 ? '9+' : messagesNonLus}
+                </span>
+              )}
+            </div>
           </div>
         </nav>
 
@@ -267,11 +293,7 @@ function TopBar({ collapsed, setCollapsed, membreActif }) {
 
   return (
     <div className="df-topbar">
-      <button
-        onClick={() => setCollapsed(false)}
-        className="df-hamburger"
-        title="Afficher le menu"
-      >
+      <button onClick={() => setCollapsed(false)} className="df-hamburger" title="Afficher le menu">
         <IconMenu />
       </button>
 
@@ -284,8 +306,11 @@ function TopBar({ collapsed, setCollapsed, membreActif }) {
         <span className="df-logo-text" style={{ fontSize: '17px' }}>DataFlow</span>
       </div>
 
-      <div className="df-avatar df-avatar-sm">
-        {membreActif.prenom?.[0]}{membreActif.nom?.[0]}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Notifications membreActif={membreActif} />
+        <div className="df-avatar df-avatar-sm">
+          {membreActif.prenom?.[0]}{membreActif.nom?.[0]}
+        </div>
       </div>
     </div>
   )
@@ -294,10 +319,45 @@ function TopBar({ collapsed, setCollapsed, membreActif }) {
 /* ──────────── Le grand chef d'orchestre de l'application ──────────── */
 function App() {
   const { membreActif, chargementAuth, deconnexion } = useMembreActif()
-  /* on donne l'acces juste qu'au membre admin */
   const estAdmin = membreActif?.role === 'admin'
-  const estCollaborateur = !estAdmin
   const [collapsed, setCollapsed] = useState(false)
+  const [messagesNonLus, setMessagesNonLus] = useState(0)
+
+  // Compter les messages non lus en temps réel
+  useEffect(() => {
+    if (!membreActif) return
+    chargerMessagesNonLus()
+    const sub = supabase
+      .channel(`notifs-sidebar-${membreActif.membre_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'notification',
+        filter: `membre_id=eq.${membreActif.membre_id}`
+      }, payload => {
+        if (payload.new.type === 'message') setMessagesNonLus(prev => prev + 1)
+      })
+      .subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [membreActif])
+
+  async function chargerMessagesNonLus() {
+    const { count } = await supabase
+      .from('notification')
+      .select('*', { count: 'exact', head: true })
+      .eq('membre_id', membreActif.membre_id)
+      .eq('type', 'message')
+      .eq('lu', false)
+    setMessagesNonLus(count || 0)
+  }
+
+  async function reinitialiserMessagesNonLus() {
+    await supabase
+      .from('notification')
+      .update({ lu: true })
+      .eq('membre_id', membreActif.membre_id)
+      .eq('type', 'message')
+      .eq('lu', false)
+    setMessagesNonLus(0)
+  }
 
   /* ──── Le piège à énigmes (héhé, t'y échapperas pas) ──── */
   const [enigmeVisible, setEnigmeVisible] = useState(false)
@@ -343,6 +403,8 @@ function App() {
             deconnexion={deconnexion}
             collapsed={collapsed}
             setCollapsed={setCollapsed}
+            messagesNonLus={messagesNonLus}
+            reinitialiserMessagesNonLus={reinitialiserMessagesNonLus}
           />
 
           <div className={`df-main ${collapsed ? 'expanded' : ''}`}>
@@ -389,6 +451,11 @@ function App() {
                   </RouteProtegee>
                 } />
 
+                <Route path="/messagerie" element={
+                  <RouteProtegee>
+                    <Messagerie />
+                  </RouteProtegee>
+                } />
                 <Route path="*" element={<Navigate to="/projets" replace />} />
               </Routes>
             </main>

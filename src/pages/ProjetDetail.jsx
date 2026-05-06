@@ -112,11 +112,7 @@ function ProjetDetail() {
       </div>
 
       {afficherFormulaire && (
-        <FormulaireProjet
-          projetExistant={projet}
-          onFermer={() => setAfficherFormulaire(false)}
-          onSuccess={() => { setProjet(null); chargerProjet() }}
-        />
+        <FormulaireProjet onFermer={() => setAfficherFormulaire(false)} onSuccess={chargerProjet} projetExistant={projet} membreActif={membreActif} />
       )}
     </div>
   )

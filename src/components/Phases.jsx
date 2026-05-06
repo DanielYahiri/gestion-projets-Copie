@@ -157,7 +157,7 @@ function Phases({ projetId, membreActif, estAdmin, onVoirTachesPhase }) {
       </div>
 
       {formulaireOuvert && (
-        <FormulairePhase projetId={projetId} phaseExistante={phaseModif} onFermer={() => setFormulaireOuvert(false)} onSuccess={chargerPhases} />
+        <FormulairePhase projetId={projetId} phaseExistante={phaseModif} onFermer={() => setFormulaireOuvert(false)} onSuccess={chargerPhases} membreActif={membreActif} />
       )}
     </div>
   )

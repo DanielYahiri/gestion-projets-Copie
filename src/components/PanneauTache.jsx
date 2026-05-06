@@ -125,18 +125,55 @@ function PanneauTache({ tacheId, onFermer }) {
   const peutModifier = estSuperAdmin || estAffecte
 
   async function changerStatut(nouveauStatut) {
-  if (majStatut || (!estAffecte && !estSuperAdmin)) return
+    if (majStatut || (!estAffecte && !estSuperAdmin)) return
     setMajStatut(true)
     const { error } = await supabase.from('tache').update({ statut: nouveauStatut }).eq('tache_id', tacheId)
-    if (error) { setMajStatut(false); return }
-    setTache(prev => ({ ...prev, statut: nouveauStatut })); setMajStatut(false)
+
+    if (!error) {
+      try {
+        const membresAssignes = Array.isArray(membres) ? membres : []
+        const aNotifier = membresAssignes.filter(m => m.membre_id !== membreActif.membre_id)
+        const labelStatut = { a_faire: 'À faire', en_cours: 'En cours', termine: 'Terminé', bloque: 'Bloqué' }
+
+        if (aNotifier.length > 0) {
+          await supabase.from('notification').insert(
+            aNotifier.map(m => ({
+              membre_id: m.membre_id,
+              type: 'tache',
+              contenu: `${membreActif.prenom} ${membreActif.nom} a changé le statut de "${tache?.titre}" en "${labelStatut[nouveauStatut] || nouveauStatut}"`,
+              lien: `/projets/${tache?.projet_id}`
+            }))
+          )
+        }
+      } catch (e) { console.log('Erreur notification statut:', e) }
+    }
   }
 
   async function envoyerCommentaire() {
     if (!nouveauCommentaire.trim() || !membreActif) return
-    setEnvoi(true)
-    const { error } = await supabase.from('commentaire').insert({ contenu: nouveauCommentaire, date: new Date().toISOString(), membre_id: membreActif.membre_id, tache_id: tacheId })
-    if (error) { setEnvoi(false); return }
+    const contenu = nouveauCommentaire.trim()
+
+    const { error } = await supabase.from('commentaire').insert({ contenu, date: new Date().toISOString(), membre_id: membreActif.membre_id, tache_id: tacheId })
+
+    if (!error) {
+      // Notifier tous les membres assignés à la tâche sauf moi
+      try {
+        const membresAssignes = Array.isArray(membres) ? membres : []
+        const aNotifier = membresAssignes.filter(m => m.membre_id !== membreActif.membre_id)
+
+        if (aNotifier.length > 0) {
+          await supabase.from('notification').insert(
+            aNotifier.map(m => ({
+              membre_id: m.membre_id,
+              type: 'commentaire',
+              contenu: `${membreActif.prenom} ${membreActif.nom} a commenté sur "${tache?.titre}" : ${contenu.slice(0, 60)}${contenu.length > 60 ? '...' : ''}`,
+              lien: `/projets/${tache?.projet_id}`
+            }))
+          )
+        }
+      } catch (e) { console.log('Erreur notification commentaire:', e) }
+    }
+
     setNouveauCommentaire(''); setEnvoi(false); rechargerTache()
   }
 
