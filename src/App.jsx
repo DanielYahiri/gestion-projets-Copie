@@ -456,6 +456,7 @@ function App() {
                     <Messagerie />
                   </RouteProtegee>
                 } />
+                <Route path="/nouveau-mot-de-passe" element={<PageNouveauMotDePasse />} />
                 <Route path="*" element={<Navigate to="/projets" replace />} />
               </Routes>
             </main>

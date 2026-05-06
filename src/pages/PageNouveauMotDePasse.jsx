@@ -12,29 +12,58 @@ function PageNouveauMotDePasse() {
   const [envoi, setEnvoi] = useState(false)
   const [sessionPrete, setSessionPrete] = useState(false)
 
-  useEffect(() => {
-    // Extraire le token depuis l'URL (format #access_token=...&type=recovery)
-    // Format nouveau : ?token_hash=...&type=recovery
-    const params = new URLSearchParams(window.location.search)
-    const tokenHash = params.get('token_hash')
-    const type = params.get('type')
+ useEffect(() => {
+  // Format 1 : ?token_hash=...&type=recovery (nouveau format)
+  const params = new URLSearchParams(window.location.search)
+  const tokenHash = params.get('token_hash')
+  const type = params.get('type')
 
-    if (tokenHash && type === 'recovery') {
-      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
-        .then(({ error }) => {
-          if (!error) setSessionPrete(true)
-          else setErreur('Le lien est invalide ou a expiré.')
-        })
+  if (tokenHash && type === 'recovery') {
+    supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+      .then(({ error }) => {
+        if (!error) setSessionPrete(true)
+        else setErreur('Le lien est invalide ou a expiré.')
+      })
+    return
+  }
+
+  // Format 2 : #access_token=...&type=recovery (ancien format Supabase)
+  const hash = window.location.hash
+  if (hash && hash.includes('type=recovery')) {
+    const hashParams = new URLSearchParams(hash.replace('#', ''))
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    if (accessToken) {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || ''
+      }).then(({ error }) => {
+        if (!error) setSessionPrete(true)
+        else setErreur('Le lien est invalide ou a expiré.')
+      })
       return
     }
+  }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) setSessionPrete(true)
+  // Format 3 : session déjà active (PASSWORD_RECOVERY event)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
+      setSessionPrete(true)
+    }
+  })
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) setSessionPrete(true)
+  })
+
+  const timeout = setTimeout(() => {
+    setSessionPrete(prev => {
+      if (!prev) setErreur('Le lien est invalide ou a expiré. Demandez un nouveau lien.')
+      return prev
     })
-    supabase.auth.getSession().then(({ data: { session } }) => { if (session) setSessionPrete(true) })
-    const timeout = setTimeout(() => { setSessionPrete(prev => { if (!prev) setErreur('Le lien est invalide ou a expiré. Demandez un nouveau lien.'); return prev }) }, 10000)
-    return () => { subscription.unsubscribe(); clearTimeout(timeout) }
-  }, [])
+  }, 10000)
+
+  return () => { subscription.unsubscribe(); clearTimeout(timeout) }
+}, [])
 
   function handleChange(e) { setForm({ ...form, [e.target.name]: e.target.value }); setErreur('') }
 
