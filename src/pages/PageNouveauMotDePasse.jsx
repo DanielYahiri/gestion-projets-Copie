@@ -11,26 +11,25 @@ function PageNouveauMotDePasse() {
   const [succes, setSucces] = useState('')
   const [envoi, setEnvoi] = useState(false)
   const [sessionPrete, setSessionPrete] = useState(false)
+  const [tokenHash, setTokenHash] = useState(null)
+  
 
- useEffect(() => {
-  // Format 1 : ?token_hash=...&type=recovery (nouveau format)
+useEffect(() => {
+  // Format 1 : ?token_hash=...&type=recovery
   const params = new URLSearchParams(window.location.search)
-  const tokenHash = params.get('token_hash')
+  const hash = params.get('token_hash')
   const type = params.get('type')
 
-  if (tokenHash && type === 'recovery') {
-    supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
-      .then(({ error }) => {
-        if (!error) setSessionPrete(true)
-        else setErreur('Le lien est invalide ou a expiré.')
-      })
+  if (hash && type === 'recovery') {
+    setTokenHash(hash)
+    setSessionPrete(true)
     return
   }
 
-  // Format 2 : #access_token=...&type=recovery (ancien format Supabase)
-  const hash = window.location.hash
-  if (hash && hash.includes('type=recovery')) {
-    const hashParams = new URLSearchParams(hash.replace('#', ''))
+  // Format 2 : #access_token=...&type=recovery
+  const fragment = window.location.hash
+  if (fragment && fragment.includes('type=recovery')) {
+    const hashParams = new URLSearchParams(fragment.replace('#', ''))
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
     if (accessToken) {
@@ -45,7 +44,7 @@ function PageNouveauMotDePasse() {
     }
   }
 
-  // Format 3 : session déjà active (PASSWORD_RECOVERY event)
+  // Format 3 : session déjà active
   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
     if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
       setSessionPrete(true)
@@ -65,6 +64,37 @@ function PageNouveauMotDePasse() {
   return () => { subscription.unsubscribe(); clearTimeout(timeout) }
 }, [])
 
+async function handleSubmit() {
+  if (!form.motDePasse.trim()) { setErreur('Le mot de passe est requis.'); return }
+  if (form.motDePasse.length < 8) { setErreur('Le mot de passe doit contenir au moins 8 caractères.'); return }
+  if (form.motDePasse !== form.confirmation) { setErreur('Les mots de passe ne correspondent pas.'); return }
+  setErreur(''); setEnvoi(true)
+
+  // Si on a un token_hash, on vérifie au moment du submit
+  if (tokenHash) {
+    const { error: otpError } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'recovery'
+    })
+    if (otpError) {
+      setErreur('Le lien a expiré. Veuillez demander un nouveau lien.')
+      setEnvoi(false)
+      setSessionPrete(false)
+      return
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: form.motDePasse })
+  if (error) {
+    setErreur('Erreur lors de la mise à jour. Réessayez.')
+    setEnvoi(false)
+    return
+  }
+  setSucces('Mot de passe mis à jour avec succès !')
+  setEnvoi(false)
+  setTimeout(async () => { await supabase.auth.signOut(); navigate('/connexion') }, 2000)
+}
+
   function handleChange(e) { setForm({ ...form, [e.target.name]: e.target.value }); setErreur('') }
 
   async function handleSubmit() {
@@ -72,9 +102,29 @@ function PageNouveauMotDePasse() {
     if (form.motDePasse.length < 8) { setErreur('Le mot de passe doit contenir au moins 8 caractères.'); return }
     if (form.motDePasse !== form.confirmation) { setErreur('Les mots de passe ne correspondent pas.'); return }
     setErreur(''); setEnvoi(true)
+
+    // Vérifier que la session est encore active avant de mettre à jour
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setErreur('Votre session a expiré. Veuillez demander un nouveau lien de réinitialisation.')
+      setEnvoi(false)
+      setSessionPrete(false)
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password: form.motDePasse })
-    if (error) { setErreur('Erreur lors de la mise à jour. Réessayez.'); setEnvoi(false); return }
-    setSucces('Mot de passe mis à jour avec succès !'); setEnvoi(false)
+    if (error) {
+      if (error.status === 403 || error.message?.includes('expired')) {
+        setErreur('Le lien a expiré. Veuillez demander un nouveau lien de réinitialisation.')
+        setSessionPrete(false)
+      } else {
+        setErreur('Erreur lors de la mise à jour. Réessayez.')
+      }
+      setEnvoi(false)
+      return
+    }
+    setSucces('Mot de passe mis à jour avec succès !')
+    setEnvoi(false)
     setTimeout(async () => { await supabase.auth.signOut(); navigate('/connexion') }, 2000)
   }
 
