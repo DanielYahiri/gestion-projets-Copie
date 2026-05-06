@@ -13,6 +13,21 @@ function PageNouveauMotDePasse() {
   const [sessionPrete, setSessionPrete] = useState(false)
 
   useEffect(() => {
+    // Extraire le token depuis l'URL (format #access_token=...&type=recovery)
+    // Format nouveau : ?token_hash=...&type=recovery
+    const params = new URLSearchParams(window.location.search)
+    const tokenHash = params.get('token_hash')
+    const type = params.get('type')
+
+    if (tokenHash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ error }) => {
+          if (!error) setSessionPrete(true)
+          else setErreur('Le lien est invalide ou a expiré.')
+        })
+      return
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) setSessionPrete(true)
     })
