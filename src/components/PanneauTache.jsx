@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { envoyerNotifEmail } from '../utils/notifEmail'
 import { useState, useEffect } from 'react'
 import { useMembreActif } from '../context/MembreContext'
 import FormulaireTache from './FormulaireTache'
@@ -125,58 +126,80 @@ function PanneauTache({ tacheId, onFermer }) {
   const peutModifier = estSuperAdmin || estAffecte
 
   async function changerStatut(nouveauStatut) {
-    if (majStatut || (!estAffecte && !estSuperAdmin)) return
-    setMajStatut(true)
-    const { error } = await supabase.from('tache').update({ statut: nouveauStatut }).eq('tache_id', tacheId)
+  if (majStatut || (!estAffecte && !estSuperAdmin)) return
+  setMajStatut(true)
+  const { error } = await supabase.from('tache').update({ statut: nouveauStatut }).eq('tache_id', tacheId)
 
-    if (!error) {
-      try {
-        const membresAssignes = Array.isArray(membres) ? membres : []
-        const aNotifier = membresAssignes.filter(m => m.membre_id !== membreActif.membre_id)
-        const labelStatut = { a_faire: 'À faire', en_cours: 'En cours', termine: 'Terminé', bloque: 'Bloqué' }
+  if (!error) {
+    try {
+      const membresAssignes = Array.isArray(membres) ? membres : []
+      const aNotifier = membresAssignes.filter(m => m.membre_id !== membreActif.membre_id)
+      const labelStatut = { a_faire: 'À faire', en_cours: 'En cours', termine: 'Terminé', bloque: 'Bloqué' }
 
-        if (aNotifier.length > 0) {
-          await supabase.from('notification').insert(
-            aNotifier.map(m => ({
-              membre_id: m.membre_id,
-              type: 'tache',
-              contenu: `${membreActif.prenom} ${membreActif.nom} a changé le statut de "${tache?.titre}" en "${labelStatut[nouveauStatut] || nouveauStatut}"`,
-              lien: `/projets/${tache?.projet_id}`
-            }))
+      if (aNotifier.length > 0) {
+        await supabase.from('notification').insert(
+          aNotifier.map(m => ({
+            membre_id: m.membre_id,
+            type: 'tache',
+            contenu: `${membreActif.prenom} ${membreActif.nom} a changé le statut de "${tache?.titre}" en "${labelStatut[nouveauStatut] || nouveauStatut}"`,
+            lien: `/projets/${tache?.projet_id}`
+          }))
+        )
+        for (const m of aNotifier) {
+          await envoyerNotifEmail(
+            m.membre_id,
+            'tache',
+            `${membreActif.prenom} ${membreActif.nom} a changé le statut de "${tache?.titre}" en "${labelStatut[nouveauStatut] || nouveauStatut}"`,
+            `/projets/${tache?.projet_id}`
           )
         }
-      } catch (e) { console.log('Erreur notification statut:', e) }
-    }
+      }
+    } catch (e) { console.log('Erreur notification statut:', e) }
+    rechargerTache()
   }
+  setMajStatut(false)
+}
 
   async function envoyerCommentaire() {
-    if (!nouveauCommentaire.trim() || !membreActif) return
-    const contenu = nouveauCommentaire.trim()
+  if (!nouveauCommentaire.trim() || !membreActif) return
+  const contenu = nouveauCommentaire.trim()
+  setEnvoi(true)
 
-    const { error } = await supabase.from('commentaire').insert({ contenu, date: new Date().toISOString(), membre_id: membreActif.membre_id, tache_id: tacheId })
+  const { error } = await supabase.from('commentaire').insert({
+    contenu, date: new Date().toISOString(),
+    membre_id: membreActif.membre_id, tache_id: tacheId
+  })
 
-    if (!error) {
-      // Notifier tous les membres assignés à la tâche sauf moi
-      try {
-        const membresAssignes = Array.isArray(membres) ? membres : []
-        const aNotifier = membresAssignes.filter(m => m.membre_id !== membreActif.membre_id)
+  if (!error) {
+    try {
+      const membresAssignes = Array.isArray(membres) ? membres : []
+      const aNotifier = membresAssignes.filter(m => m.membre_id !== membreActif.membre_id)
 
-        if (aNotifier.length > 0) {
-          await supabase.from('notification').insert(
-            aNotifier.map(m => ({
-              membre_id: m.membre_id,
-              type: 'commentaire',
-              contenu: `${membreActif.prenom} ${membreActif.nom} a commenté sur "${tache?.titre}" : ${contenu.slice(0, 60)}${contenu.length > 60 ? '...' : ''}`,
-              lien: `/projets/${tache?.projet_id}`
-            }))
+      if (aNotifier.length > 0) {
+        await supabase.from('notification').insert(
+          aNotifier.map(m => ({
+            membre_id: m.membre_id,
+            type: 'commentaire',
+            contenu: `${membreActif.prenom} ${membreActif.nom} a commenté sur "${tache?.titre}" : ${contenu.slice(0, 60)}${contenu.length > 60 ? '...' : ''}`,
+            lien: `/projets/${tache?.projet_id}`
+          }))
+        )
+        for (const m of aNotifier) {
+          await envoyerNotifEmail(
+            m.membre_id,
+            'commentaire',
+            `${membreActif.prenom} ${membreActif.nom} a commenté sur "${tache?.titre}" : ${contenu.slice(0, 60)}`,
+            `/projets/${tache?.projet_id}`
           )
         }
-      } catch (e) { console.log('Erreur notification commentaire:', e) }
-    }
-
-    setNouveauCommentaire(''); setEnvoi(false); rechargerTache()
+      }
+    } catch (e) { console.log('Erreur notification commentaire:', e) }
   }
 
+  setNouveauCommentaire('')
+  setEnvoi(false)
+  rechargerTache()
+}
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', justifyContent: 'flex-end' }}>
       <div className="animate-overlayIn" style={{ flex: 1, background: 'var(--df-bg-overlay)', backdropFilter: 'blur(4px)' }} onClick={onFermer} />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import { envoyerNotifEmail } from '../utils/notifEmail'
 import { useMembreActif } from '../context/MembreContext'
 
 function IconGroupe() {
@@ -181,9 +182,17 @@ function Messagerie() {
           lien: '/messagerie'
         }))
       )
+      // Email pour chaque participant
+      for (const p of participants) {
+        await envoyerNotifEmail(
+          p.membre_id,
+          'message',
+          `${membreActif.prenom} ${membreActif.nom} vous a envoyé un message : ${contenu.slice(0, 60)}${contenu.length > 60 ? '...' : ''}`,
+          '/messagerie'
+        )
+      }
     }
   }
-
   async function creerConversation() {
     if (membresSelectionnes.length === 0) return
     const type = membresSelectionnes.length > 1 ? 'groupe' : 'prive'

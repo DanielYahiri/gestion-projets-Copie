@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { envoyerNotifEmail } from '../utils/notifEmail'
 
 function FormulaireProjet({ onFermer, onSuccess, projetExistant, membreActif }) {
   const [clients, setClients] = useState([])
@@ -73,6 +74,15 @@ function FormulaireProjet({ onFermer, onSuccess, projetExistant, membreActif }) 
               lien: `/projets/${projetExistant.projet_id}`
             }))
           )
+          // Email pour chaque membre
+          for (const mid of membreIds) {
+            await envoyerNotifEmail(
+              mid,
+              'tache',
+              `Le projet "${form.nom}" a été marqué comme terminé par ${membreActif?.prenom} ${membreActif?.nom}`,
+              `/projets/${projetExistant.projet_id}`
+            )
+          }
         }
       } catch (e) { console.log('Erreur notification projet terminé:', e) }
     }

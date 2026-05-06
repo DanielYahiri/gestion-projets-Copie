@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { envoyerNotifEmail } from '../utils/notifEmail'
 import { supabase } from '../supabase'
 
 function FormulairePhase({ onFermer, onSuccess, phaseExistante, projetId, membreActif }) {
@@ -47,6 +48,17 @@ function FormulairePhase({ onFermer, onSuccess, phaseExistante, projetId, membre
             lien: `/projets/${projetId}`
           }))
         )
+        // Email pour chaque membre
+        for (const mid of membreIds) {
+          await envoyerNotifEmail(
+            mid,
+            'phase',
+            phaseExistante
+              ? `${membreActif?.prenom} ${membreActif?.nom} a modifié la phase "${form.nom}"`
+              : `${membreActif?.prenom} ${membreActif?.nom} a ajouté une nouvelle phase "${form.nom}"`,
+            `/projets/${projetId}`
+          )
+        }
       }
     } catch (e) { console.log('Erreur notification phase:', e) }
 
